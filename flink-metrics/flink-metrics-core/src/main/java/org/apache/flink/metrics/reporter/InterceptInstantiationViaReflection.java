@@ -15,21 +15,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.metrics.prometheus;
+package org.apache.flink.metrics.reporter;
 
-import org.apache.flink.metrics.reporter.InterceptInstantiationViaReflection;
-import org.apache.flink.metrics.reporter.MetricReporterFactory;
-
-import java.util.Properties;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
- * {@link MetricReporterFactory} for {@link PrometheusPushGatewayReporter}.
+ * Annotation for {@link MetricReporterFactory MetricReporterFactories} that want to maintain
+ * backwards-compatibility with existing reflection-based configurations.
+ *
+ * <p>When a reporter is configured to be used via reflection the annotated factory will be used instead.
+ *
+ * @see InstantiateViaFactory
  */
-@InterceptInstantiationViaReflection(reporterClassName = "org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporter")
-public class PrometheusPushGatewayReporterFactory implements MetricReporterFactory {
-
-	@Override
-	public PrometheusPushGatewayReporter createMetricReporter(Properties properties) {
-		return new PrometheusPushGatewayReporter();
-	}
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.TYPE)
+public @interface InterceptInstantiationViaReflection {
+	String reporterClassName();
 }
