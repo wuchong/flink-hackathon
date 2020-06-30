@@ -46,6 +46,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>The implementation of this class is rather thin. The actual logic for creating the set of
  * FileSourceSplits to process, and the logic to decide which reader gets what split, are in
  * {@link FileEnumerator} and in {@link FileSplitAssigner}, respectively.
+ *
+ * <p>TODO For traditional batch jobs, it is better to assign all splits at the beginning.
+ * This due to batch failover mechanism:
+ * - Failover mechanism: Re-launch tasks when batch jobs tasks failed.
+ * - Large parallelism to have many small tasks, they can be run very quickly, and can have a good
+ * failover experience. And may have less slots, can not use dynamic split enumerator, otherwise,
+ * many tasks will starve to death.
  */
 public class StaticFileSplitEnumerator implements SplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint> {
 
