@@ -58,6 +58,9 @@ public class FileSourceSplit implements SourceSplit {
 	@Nullable
 	byte[] serializedFormCache;
 
+	/** Current row count for streaming reading. */
+	private final long currentRowCount;
+
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -94,6 +97,17 @@ public class FileSourceSplit implements SourceSplit {
 			long length,
 			String[] hostnames,
 			@Nullable byte[] serializedForm) {
+		this(id, filePath, offset, length, hostnames, serializedForm, 0);
+	}
+
+	FileSourceSplit(
+			String id,
+			Path filePath,
+			long offset,
+			long length,
+			String[] hostnames,
+			@Nullable byte[] serializedForm,
+			long currentRowCount) {
 
 		checkArgument(offset >= 0, "offset must be >= 0");
 		checkArgument(length >= 0, "length must be >= 0");
@@ -105,6 +119,7 @@ public class FileSourceSplit implements SourceSplit {
 		this.length = length;
 		this.hostnames = checkNotNull(hostnames);
 		this.serializedFormCache = serializedForm;
+		this.currentRowCount = currentRowCount;
 	}
 
 	// ------------------------------------------------------------------------
@@ -148,6 +163,10 @@ public class FileSourceSplit implements SourceSplit {
 		return hostnames;
 	}
 
+	public long currentRowCount() {
+		return currentRowCount;
+	}
+
 	// ------------------------------------------------------------------------
 	//  utils
 	// ------------------------------------------------------------------------
@@ -155,7 +174,8 @@ public class FileSourceSplit implements SourceSplit {
 	@Override
 	public String toString() {
 		final String hosts = hostnames.length == 0 ? "(no host info)" : " hosts=" + Arrays.toString(hostnames);
-		return String.format("FileSourceSplit: %s [%d, %d) %s ID=%s", filePath, offset, offset + length, hosts, id);
+		return String.format("FileSourceSplit: %s [%d, %d) %s ID=%s ReadRowCount=%d",
+				filePath, offset, offset + length, hosts, id, currentRowCount);
 	}
 
 	private static void checkNoNullHosts(String[] hosts) {
