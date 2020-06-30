@@ -41,7 +41,9 @@ import java.util.Set;
 /**
  * A {@link SplitReader} to read file split.
  *
- * <p>NOTE: TODO Current implementation is fetching per record, very low performance.
+ * <p>NOTE:
+ * TODO Current implementation is fetching per record, very low performance.
+ * TODO Collection (Can be iterator?) in RecordsWithSplitIds makes hard to providing a batch view for vectorization format like parquet.
  */
 public class FileSourceSplitReader<T> implements SplitReader<Tuple2<T, Long>, FileSourceSplit> {
 
