@@ -152,8 +152,8 @@ public class KafkaEnumeratorTest {
 	public void testDiscoverPartitionsPeriodically() throws Throwable {
 		MockSplitEnumeratorContext<KafkaPartitionSplit> context = new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
 		try (KafkaSourceEnumerator enumerator =
-				 createEnumerator(context, ENABLE_PERIODIC_PARTITION_DISCOVERY, INCLUDE_DYNAMIC_TOPIC);
-			 AdminClient adminClient = KafkaSourceTestEnv.getAdminClient()) {
+				createEnumerator(context, ENABLE_PERIODIC_PARTITION_DISCOVERY, INCLUDE_DYNAMIC_TOPIC);
+			AdminClient adminClient = KafkaSourceTestEnv.getAdminClient()) {
 
 			startEnumeratorAndRegisterReaders(context, enumerator);
 
@@ -221,7 +221,7 @@ public class KafkaEnumeratorTest {
 
 		final MockSplitEnumeratorContext<KafkaPartitionSplit> context2 = new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
 		try (KafkaSourceEnumerator enumerator =
-				 createEnumerator(context2, ENABLE_PERIODIC_PARTITION_DISCOVERY, PRE_EXISTING_TOPICS, preexistingAssignments)) {
+				createEnumerator(context2, ENABLE_PERIODIC_PARTITION_DISCOVERY, PRE_EXISTING_TOPICS, preexistingAssignments)) {
 			enumerator.start();
 			context2.runPeriodicCallable(PARTITION_DISCOVERY_CALLABLE_INDEX);
 
