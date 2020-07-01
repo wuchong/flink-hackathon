@@ -19,7 +19,6 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.api.connector.source.Source;
-import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.hybrid.HybridSource;
 import org.apache.flink.api.connector.source.hybrid.SwitchableSource;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -42,12 +41,14 @@ public class HybridTableSource implements ScanTableSource {
 		return incrementalSource.getChangelogMode();
 	}
 
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({"unchecked", "rawtypes"})
 	@Override
 	public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
+		SourceProvider historicalProvider = (SourceProvider) historicalSource.getScanRuntimeProvider(runtimeProviderContext);
+		SourceProvider incrementalProvider = (SourceProvider) incrementalSource.getScanRuntimeProvider(runtimeProviderContext);
 		Source source = HybridSource.builder()
-			.addFirstSource((SwitchableSource<Object, SourceSplit, Object, ?, Object>) historicalSource.getScanRuntimeProvider(runtimeProviderContext))
-			.addSecondSource((SwitchableSource<Object, SourceSplit, Object, Object, ?>) incrementalSource.getScanRuntimeProvider(runtimeProviderContext))
+			.addFirstSource((SwitchableSource) historicalProvider.createSource())
+			.addSecondSource((SwitchableSource) incrementalProvider.createSource())
 			.build();
 		return SourceProvider.of(source);
 	}

@@ -41,7 +41,7 @@ public final class FileSourceSplitSerializer implements SimpleVersionedSerialize
 	private static final ThreadLocal<DataOutputSerializer> SERIALIZER_CACHE =
 			ThreadLocal.withInitial(() -> new DataOutputSerializer(64));
 
-	private static final int VERSION = 1;
+	private static final int VERSION = 0;
 
 	// ------------------------------------------------------------------------
 
@@ -78,7 +78,7 @@ public final class FileSourceSplitSerializer implements SimpleVersionedSerialize
 
 	@Override
 	public FileSourceSplit deserialize(int version, byte[] serialized) throws IOException {
-		if (version == 1) {
+		if (version == VERSION) {
 			return deserializeV1(serialized);
 		}
 		throw new IOException("Unknown version: " + version);
