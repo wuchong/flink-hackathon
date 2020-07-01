@@ -24,10 +24,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.hybrid.HybridSource;
 import org.apache.flink.api.connector.source.hybrid.HybridSourceBuilder;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.file.src.FileSource;
 import org.apache.flink.connector.file.src.FileSourceSplit;
-import org.apache.flink.connector.file.src.FileSwitchableSource;
 import org.apache.flink.connector.file.src.PendingSplitsCheckpoint;
-import org.apache.flink.connectors.kafka.source.KafkaSwitchableSource;
+import org.apache.flink.connectors.kafka.source.KafkaSource;
 import org.apache.flink.connectors.kafka.source.enumerator.KafkaSourceEnumState;
 import org.apache.flink.connectors.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connectors.kafka.source.reader.deserializer.KafkaDeserializer;
@@ -47,14 +47,11 @@ import org.apache.kafka.common.serialization.IntegerDeserializer;
 import java.io.Serializable;
 import java.util.*;
 
-/**
- * Job to generate input events that are written to Kafka, for the {@link StateMachineExample} job.
- */
 public class HybridSourceDemo {
 
 	public static void main(String[] args) throws Exception {
-		FileSwitchableSource<PartitionAndValue> fileSource = new FileSwitchableSource<>(new Path(""));
-		KafkaSwitchableSource<PartitionAndValue> kafkaSource = KafkaSwitchableSource
+		FileSource<PartitionAndValue> fileSource = new FileSource<>(new Path(""));
+		KafkaSource<PartitionAndValue> kafkaSource = KafkaSource
 			.<PartitionAndValue>builder()
 			.setClientIdPrefix("hybrid-kafka-source")
 			.setTopics(Collections.singletonList("topic1"))
@@ -62,7 +59,7 @@ public class HybridSourceDemo {
 			.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "")
 			.setStartingOffsetInitializer(OffsetsInitializer.earliest())
 			.setBounded(OffsetsInitializer.latest())
-			.buildSwitchable();
+			.build();
 		HybridSource<PartitionAndValue, FileSourceSplit, KafkaPartitionSplit, PendingSplitsCheckpoint, KafkaSourceEnumState, Long> hybridSource =
 			new HybridSourceBuilder<PartitionAndValue, FileSourceSplit, KafkaPartitionSplit, PendingSplitsCheckpoint, KafkaSourceEnumState, Long>()
 				.addFirstSource(fileSource)

@@ -45,13 +45,13 @@ public class KafkaSourceBuilder<OUT> {
 	private static final Logger LOG = LoggerFactory.getLogger(KafkaSourceBuilder.class);
 	private static final String[] REQUIRED_CONFIGS = {ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG};
 	// The subscriber specifies the partitions to subscribe to.
-	protected KafkaSubscriber subscriber;
+	private KafkaSubscriber subscriber;
 	// Users can specify the starting / stopping offset initializer.
-	protected OffsetsInitializer startingOffsetsInitializer;
-	protected OffsetsInitializer stoppingOffsetsInitializer;
+	private OffsetsInitializer startingOffsetsInitializer;
+	private OffsetsInitializer stoppingOffsetsInitializer;
 	// Boundedness
-	protected Boundedness boundedness;
-	protected KafkaDeserializer<OUT> deserializationSchema;
+	private Boundedness boundedness;
+	private KafkaDeserializer<OUT> deserializationSchema;
 	// The configurations.
 	protected Properties props;
 
@@ -136,18 +136,6 @@ public class KafkaSourceBuilder<OUT> {
 			props);
 	}
 
-	public KafkaSwitchableSource<OUT> buildSwitchable() {
-		sanityCheck();
-		parseAndSetRequiredProperties();
-		return new KafkaSwitchableSource<>(
-			subscriber,
-			startingOffsetsInitializer,
-			stoppingOffsetsInitializer,
-			boundedness,
-			deserializationSchema,
-			props);
-	}
-
 	// ------------- private helpers  --------------
 
 	private void ensureSubscriberIsNull(String attemptingSubscribeMode) {
@@ -158,7 +146,7 @@ public class KafkaSourceBuilder<OUT> {
 		}
 	}
 
-	protected void parseAndSetRequiredProperties() {
+	private void parseAndSetRequiredProperties() {
 		maybeOverride(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName(), true);
 		maybeOverride(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName(), true);
 		maybeOverride(ConsumerConfig.GROUP_ID_CONFIG, "KafkaSource-" + new Random().nextLong(), false);
@@ -204,7 +192,7 @@ public class KafkaSourceBuilder<OUT> {
 		return overridden;
 	}
 
-	protected void sanityCheck() {
+	private void sanityCheck() {
 		// Check required configs.
 		for (String requiredConfig : REQUIRED_CONFIGS) {
 			checkNotNull(props.getProperty(

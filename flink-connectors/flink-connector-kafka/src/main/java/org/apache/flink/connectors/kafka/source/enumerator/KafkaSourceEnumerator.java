@@ -21,9 +21,9 @@ package org.apache.flink.connectors.kafka.source.enumerator;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.source.SourceEvent;
-import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
+import org.apache.flink.api.connector.source.hybrid.SwitchableSplitEnumerator;
 import org.apache.flink.connector.base.source.event.NoMoreSplitsEvent;
 import org.apache.flink.connectors.kafka.source.KafkaSourceOptions;
 import org.apache.flink.connectors.kafka.source.enumerator.initializer.OffsetsInitializer;
@@ -62,10 +62,10 @@ import static org.apache.flink.util.ComponentClosingUtils.closeWithTimeout;
  * The enumerator class for Kafka source.
  */
 @Internal
-public class KafkaSourceEnumerator implements SplitEnumerator<KafkaPartitionSplit, KafkaSourceEnumState> {
+public class KafkaSourceEnumerator implements SwitchableSplitEnumerator<KafkaPartitionSplit, KafkaSourceEnumState, Long, Void> {
 	private static final Logger LOG = LoggerFactory.getLogger(KafkaSourceEnumerator.class);
 	private final KafkaSubscriber subscriber;
-	protected OffsetsInitializer startingOffsetInitializer;
+	private OffsetsInitializer startingOffsetInitializer;
 	private final OffsetsInitializer stoppingOffsetInitializer;
 	private final Properties properties;
 	private final long partitionDiscoveryIntervalMs;
@@ -356,5 +356,15 @@ public class KafkaSourceEnumerator implements SplitEnumerator<KafkaPartitionSpli
 			consumer.close(Duration.ZERO);
 			adminClient.close(Duration.ZERO);
 		}
+	}
+
+	@Override
+	public void setStartState(Long startState) {
+		this.startingOffsetInitializer = OffsetsInitializer.timestamps(startState);
+	}
+
+	@Override
+	public Void getEndState() {
+		throw new UnsupportedOperationException();
 	}
 }

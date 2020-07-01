@@ -49,7 +49,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <T> The type of the events/records produced by this source.
  */
 public final class FileSource<T> implements
-		SwitchableSource<T, FileSourceSplit, PendingSplitsCheckpoint, Long, Void> {
+		SwitchableSource<T, FileSourceSplit, PendingSplitsCheckpoint, Void, Long> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -133,7 +133,7 @@ public final class FileSource<T> implements
 	}
 
 	@Override
-	public SwitchableSplitEnumerator<Long, Void, FileSourceSplit, PendingSplitsCheckpoint> createEnumerator(
+	public SwitchableSplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint, Void, Long> createEnumerator(
 			SplitEnumeratorContext<FileSourceSplit> enumContext) {
 		final FileEnumerator enumerator = enumeratorFactory.create();
 		final Collection<FileSourceSplit> splits;
@@ -149,7 +149,7 @@ public final class FileSource<T> implements
 	}
 
 	@Override
-	public SwitchableSplitEnumerator<Long, Void, FileSourceSplit, PendingSplitsCheckpoint> restoreEnumerator(
+	public SwitchableSplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint, Void, Long> restoreEnumerator(
 			SplitEnumeratorContext<FileSourceSplit> enumContext,
 			PendingSplitsCheckpoint checkpoint) throws IOException {
 		final FileEnumerator enumerator = enumeratorFactory.create();
@@ -179,7 +179,7 @@ public final class FileSource<T> implements
 	//  helpers
 	// ------------------------------------------------------------------------
 
-	private SwitchableSplitEnumerator<Long, Void, FileSourceSplit, PendingSplitsCheckpoint> createSplitEnumerator(
+	private SwitchableSplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint, Void, Long> createSplitEnumerator(
 			SplitEnumeratorContext<FileSourceSplit> context,
 			Collection<FileSourceSplit> splits) {
 
