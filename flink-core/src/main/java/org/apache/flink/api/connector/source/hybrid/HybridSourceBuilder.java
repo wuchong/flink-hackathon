@@ -28,7 +28,7 @@ public class HybridSourceBuilder<OUT, SplitT1 extends SourceSplit, SplitT2 exten
 	private SwitchableSource<OUT, SplitT1, EnumChkT1, ?, SwitchStateT> firstSource;
 	private SwitchableSource<OUT, SplitT2, EnumChkT2, SwitchStateT, ?> secondSource;
 
-	public HybridSourceBuilder<OUT, SplitT1, SplitT2, EnumChkT1, EnumChkT2, SwitchStateT> addFirstSource(SwitchableSource<OUT, SplitT1, EnumChkT1, ?,SwitchStateT> firstSource) {
+	public HybridSourceBuilder<OUT, SplitT1, SplitT2, EnumChkT1, EnumChkT2, SwitchStateT> addFirstSource(SwitchableSource<OUT, SplitT1, EnumChkT1, ?, SwitchStateT> firstSource) {
 		this.firstSource = firstSource;
 		return this;
 	}
