@@ -84,6 +84,21 @@ public class TableSchemaUtils {
 	}
 
 	/**
+	 * Creates a new {@link TableSchema} with the projected fields from another {@link TableSchema}.
+	 * The new {@link TableSchema} doesn't contain any primary key or watermark information.
+	 */
+	public static TableSchema projectSchema(TableSchema tableSchema, int[] projectedFields) {
+		checkArgument(!containsGeneratedColumns(tableSchema), "It's illegal to project on a schema contains computed columns.");
+		TableSchema.Builder schemaBuilder = TableSchema.builder();
+		List<TableColumn> tableColumns = tableSchema.getTableColumns();
+		for (int fieldIndex : projectedFields) {
+			TableColumn column = tableColumns.get(fieldIndex);
+			schemaBuilder.field(column.getName(), column.getType());
+		}
+		return schemaBuilder.build();
+	}
+
+	/**
 	 * Returns true if there are any generated columns in the given {@link TableColumn}.
 	 */
 	public static boolean containsGeneratedColumns(TableSchema schema) {

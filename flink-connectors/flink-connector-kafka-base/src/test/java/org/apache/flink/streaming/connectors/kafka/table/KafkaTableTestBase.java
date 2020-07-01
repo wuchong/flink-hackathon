@@ -210,7 +210,7 @@ public abstract class KafkaTableTestBase extends KafkaTestBaseWithFlink {
 		deleteTestTopic(topic);
 	}
 
-	private String formatOptions() {
+	protected String formatOptions() {
 		if (!isLegacyConnector) {
 			return String.format("'format' = '%s'", format);
 		} else {
@@ -231,14 +231,14 @@ public abstract class KafkaTableTestBase extends KafkaTestBaseWithFlink {
 		}
 	}
 
-	private static final class TestingSinkFunction implements SinkFunction<RowData> {
+	protected static final class TestingSinkFunction implements SinkFunction<RowData> {
 
 		private static final long serialVersionUID = 455430015321124493L;
-		private static List<String> rows = new ArrayList<>();
+		protected static List<String> rows = new ArrayList<>();
 
 		private final int expectedSize;
 
-		private TestingSinkFunction(int expectedSize) {
+		protected TestingSinkFunction(int expectedSize) {
 			this.expectedSize = expectedSize;
 			rows.clear();
 		}

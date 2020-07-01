@@ -65,6 +65,13 @@ public class KafkaOptions {
 			.noDefaultValue()
 			.withDescription("Required consumer group in Kafka consumer, no need for Kafka producer");
 
+	public static final ConfigOption<String> TIMESTAMP_FIELD = ConfigOptions
+		.key("timestamp.field")
+		.stringType()
+		.noDefaultValue()
+		.withDescription("Kafka message timestamp field name in the schema.");
+
+
 	// --------------------------------------------------------------------------------------------
 	// Scan specific options
 	// --------------------------------------------------------------------------------------------

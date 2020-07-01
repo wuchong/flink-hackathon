@@ -20,10 +20,12 @@ package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducerBase;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.descriptors.KafkaValidator;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.runtime.utils.TableEnvUtil;
@@ -174,6 +176,108 @@ public class KafkaTableITCase extends KafkaTableTestBase {
 
 		List<String> actual = TestValuesTableFactory.getResults("sink");
 		assertThat(actual, containsInAnyOrder(expected));
+
+		// ------------- cleanup -------------------
+
+		deleteTestTopic(topic);
+	}
+
+	@Test
+	public void testKafkaMessageTimestamp() throws Exception {
+		// we always use a different topic name for each parameterized topic,
+		// in order to make sure the topic can be created.
+		final String topic = "tstopic_" + format + "_" + isLegacyConnector;
+		createTestTopic(topic, 1, 1);
+
+		// ---------- Produce an event time stream into Kafka -------------------
+		String groupId = standardProps.getProperty("group.id");
+		String bootstraps = standardProps.getProperty("bootstrap.servers");
+
+		final String createTable = String.format(
+			"create table kafka (\n" +
+				"  `computed-price` as price + 1.0,\n" +
+				"  price decimal(38, 18),\n" +
+				"  currency string,\n" +
+				"  log_date date,\n" +
+				"  log_time time(3),\n" +
+				"  log_ts timestamp(3),\n" +
+				"  ts as log_ts + INTERVAL '1' SECOND,\n" +
+				"  watermark for ts as ts\n" +
+				") with (\n" +
+				"  'connector' = '%s',\n" +
+				"  'topic' = '%s',\n" +
+				"  'properties.bootstrap.servers' = '%s',\n" +
+				"  'properties.group.id' = '%s',\n" +
+				"  'scan.startup.mode' = 'earliest-offset',\n" +
+				"  %s\n" +
+				")",
+			factoryIdentifier(),
+			topic,
+			bootstraps,
+			groupId,
+			formatOptions());
+
+		tEnv.executeSql(createTable);
+
+		String initialValues = "INSERT INTO kafka\n" +
+			"SELECT CAST(price AS DECIMAL(10, 2)), currency, " +
+			" CAST(d AS DATE), CAST(t AS TIME(0)), CAST(ts AS TIMESTAMP(3))\n" +
+			"FROM (VALUES (2.02,'Euro','2019-12-12', '00:00:01', '2019-12-12 00:00:01.001001'), \n" +
+			"  (1.11,'US Dollar','2019-12-12', '00:00:02', '2019-12-12 00:00:02.002001'), \n" +
+			"  (50,'Yen','2019-12-12', '00:00:03', '2019-12-12 00:00:03.004001'), \n" +
+			"  (3.1,'Euro','2019-12-12', '00:00:04', '2019-12-12 00:00:04.005001'), \n" +
+			"  (5.33,'US Dollar','2019-12-12', '00:00:05', '2019-12-12 00:00:05.006001'), \n" +
+			"  (0,'DUMMY','2019-12-12', '00:00:10', '2019-12-12 00:00:10'))\n" +
+			"  AS orders (price, currency, d, t, ts)";
+		TableEnvUtil.execInsertSqlAndWaitResult(tEnv, initialValues);
+
+		// ---------- Consume stream from Kafka -------------------
+
+		final String table2 = String.format(
+			"create table kafka2 (\n" +
+				"  `computed-price` as price + 1.0,\n" +
+				"  price decimal(38, 18),\n" +
+				"  currency string,\n" +
+				"  log_date date,\n" +
+				"  log_time time(3),\n" +
+				"  log_ts timestamp(3),\n" +
+				"  kafka_ts timestamp(3)\n" +
+				") with (\n" +
+				"  'connector' = '%s',\n" +
+				"  'topic' = '%s',\n" +
+				"  'properties.bootstrap.servers' = '%s',\n" +
+				"  'properties.group.id' = '%s',\n" +
+				"  'scan.startup.mode' = 'earliest-offset',\n" +
+				"  'timestamp.field' = 'kafka_ts'," +
+				"  %s\n" +
+				")",
+			factoryIdentifier(),
+			topic,
+			bootstraps,
+			groupId,
+			formatOptions());
+		tEnv.executeSql(table2);
+
+		String query = "SELECT * FROM kafka2";
+
+		DataStream<RowData> result = tEnv.toAppendStream(tEnv.sqlQuery(query), RowData.class);
+		TestingSinkFunction sink = new TestingSinkFunction(6);
+		result.addSink(sink).setParallelism(1);
+
+		try {
+			env.execute("Job_2");
+		} catch (Throwable e) {
+			// we have to use a specific exception to indicate the job is finished,
+			// because the registered Kafka source is infinite.
+			if (!isCausedByJobFinished(e)) {
+				// re-throw
+				throw e;
+			}
+		}
+
+		for (String row : TestingSinkFunction.rows) {
+			System.out.println(row);
+		}
 
 		// ------------- cleanup -------------------
 

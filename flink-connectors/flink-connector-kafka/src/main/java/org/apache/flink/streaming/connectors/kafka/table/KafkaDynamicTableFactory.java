@@ -21,9 +21,8 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
-import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -35,9 +34,13 @@ import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
+import org.apache.flink.table.utils.TableSchemaUtils;
 
+import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Map;
+import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -48,6 +51,7 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SCA
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SCAN_STARTUP_SPECIFIC_OFFSETS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SCAN_STARTUP_TIMESTAMP_MILLIS;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.SINK_PARTITIONER;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.TIMESTAMP_FIELD;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.TOPIC;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.getFlinkKafkaPartitioner;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.getKafkaProperties;
@@ -75,16 +79,27 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 		// Validate the option values.
 		validateTableOptions(tableOptions);
 
-		DataType producedDataType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
+		TableSchema physicalSchema = TableSchemaUtils.getPhysicalSchema(context.getCatalogTable().getSchema());
+		List<String> fieldNames = Arrays.asList(physicalSchema.getFieldNames());
 		final KafkaOptions.StartupOptions startupOptions = getStartupOptions(tableOptions, topic);
-		return createKafkaTableSource(
-			producedDataType,
+		int timestampIndex = tableOptions.getOptional(KafkaOptions.TIMESTAMP_FIELD)
+			.map(fieldNames::indexOf)
+			.orElse(-1);
+		physicalSchema.getFieldDataType(timestampIndex).ifPresent(dt -> {
+			if (dt.getLogicalType().getTypeRoot() != LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE ||
+				LogicalTypeChecks.getPrecision(dt.getLogicalType()) != 3) {
+				throw new IllegalArgumentException("Kafka message timestamp field must be defined as TIMESTAMP(3).");
+			}
+		});
+		return new KafkaDynamicSource(
+			physicalSchema,
 			topic,
 			getKafkaProperties(context.getCatalogTable().getOptions()),
 			decodingFormat,
 			startupOptions.startupMode,
 			startupOptions.specificOffsets,
-			startupOptions.startupTimestampMillis);
+			startupOptions.startupTimestampMillis,
+			timestampIndex);
 	}
 
 	@Override
@@ -128,25 +143,8 @@ public class KafkaDynamicTableFactory implements DynamicTableSourceFactory, Dyna
 		options.add(SCAN_STARTUP_SPECIFIC_OFFSETS);
 		options.add(SCAN_STARTUP_TIMESTAMP_MILLIS);
 		options.add(SINK_PARTITIONER);
+		options.add(TIMESTAMP_FIELD);
 		return options;
-	}
-
-	protected KafkaDynamicSource createKafkaTableSource(
-			DataType producedDataType,
-			String topic,
-			Properties properties,
-			DecodingFormat<DeserializationSchema<RowData>> decodingFormat,
-			StartupMode startupMode,
-			Map<KafkaTopicPartition, Long> specificStartupOffsets,
-			long startupTimestampMillis) {
-		return new KafkaDynamicSource(
-				producedDataType,
-				topic,
-				properties,
-				decodingFormat,
-				startupMode,
-				specificStartupOffsets,
-				startupTimestampMillis);
 	}
 
 	protected KafkaDynamicSinkBase createKafkaTableSink(

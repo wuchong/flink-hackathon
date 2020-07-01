@@ -22,8 +22,10 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.connectors.kafka.source.KafkaSource;
 import org.apache.flink.connectors.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connectors.kafka.source.reader.deserializer.DeserializationSchemaWrapper;
+import org.apache.flink.connectors.kafka.source.reader.deserializer.KafkaDeserializer;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -31,7 +33,7 @@ import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.sources.StreamTableSource;
-import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.kafka.common.TopicPartition;
@@ -52,7 +54,7 @@ public class KafkaDynamicSource implements ScanTableSource {
 	// --------------------------------------------------------------------------------------------
 	// Common attributes
 	// --------------------------------------------------------------------------------------------
-	protected final DataType outputDataType;
+	protected final TableSchema physicalTableSchema;
 
 	// --------------------------------------------------------------------------------------------
 	// Scan format attributes
@@ -81,9 +83,14 @@ public class KafkaDynamicSource implements ScanTableSource {
 	protected final long startupTimestampMillis;
 
 	/**
+	 * The index of Kafka message timestamp in the schema.
+	 */
+	protected final int timestampIndex;
+
+	/**
 	 * Creates a generic Kafka {@link StreamTableSource}.
 	 *
-	 * @param outputDataType         Source output data type
+	 * @param tableSchema	         Source output schema
 	 * @param topic                  Kafka topic to consume
 	 * @param properties             Properties for the Kafka consumer
 	 * @param decodingFormat         Decoding format for decoding records from Kafka
@@ -92,16 +99,17 @@ public class KafkaDynamicSource implements ScanTableSource {
 	 *                               mode is {@link StartupMode#SPECIFIC_OFFSETS}
 	 */
 	public KafkaDynamicSource(
-			DataType outputDataType,
+			TableSchema tableSchema,
 			String topic,
 			Properties properties,
 			DecodingFormat<DeserializationSchema<RowData>> decodingFormat,
 			StartupMode startupMode,
 			Map<KafkaTopicPartition, Long> specificStartupOffsets,
-			long startupTimestampMillis) {
+			long startupTimestampMillis,
+			int timestampIndex) {
 
-		this.outputDataType = Preconditions.checkNotNull(
-			outputDataType, "Produced data type must not be null.");
+		this.physicalTableSchema = Preconditions.checkNotNull(
+			tableSchema, "Produced data type must not be null.");
 		this.topic = Preconditions.checkNotNull(topic, "Topic must not be null.");
 		this.properties = Preconditions.checkNotNull(properties, "Properties must not be null.");
 		this.decodingFormat = Preconditions.checkNotNull(
@@ -110,6 +118,7 @@ public class KafkaDynamicSource implements ScanTableSource {
 		this.specificStartupOffsets = Preconditions.checkNotNull(
 			specificStartupOffsets, "Specific offsets must not be null.");
 		this.startupTimestampMillis = startupTimestampMillis;
+		this.timestampIndex = timestampIndex;
 	}
 
 	@Override
@@ -119,16 +128,36 @@ public class KafkaDynamicSource implements ScanTableSource {
 
 	@Override
 	public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
-		DeserializationSchema<RowData> deserializationSchema =
-			this.decodingFormat.createRuntimeDecoder(runtimeProviderContext, this.outputDataType);
 		KafkaSource<RowData> kafkaSource = KafkaSource.<RowData>builder()
 			.setTopics(Collections.singletonList(topic))
-			.setDeserializer(new DeserializationSchemaWrapper<>(deserializationSchema))
+			.setDeserializer(getDeserializer(runtimeProviderContext))
 			.setClientIdPrefix(UUID.randomUUID().toString())
 			.setProperties(properties)
 			.setStartingOffsetInitializer(getOffsetInitializer())
 			.build();
 		return SourceProvider.of(kafkaSource);
+	}
+
+	private KafkaDeserializer<RowData> getDeserializer(ScanContext runtimeProviderContext) {
+		if (timestampIndex > 0) {
+			int arity = physicalTableSchema.getFieldCount();
+			int[] projection = new int[arity - 1];
+			for (int i = 0; i < arity; i++) {
+				if (i < timestampIndex) {
+					projection[i] = i;
+				} else if (i > timestampIndex) {
+					projection[i - 1] = i;
+				}
+			}
+			TableSchema formatSchema = TableSchemaUtils.projectSchema(physicalTableSchema, projection);
+			DeserializationSchema<RowData> deserializationSchema =
+				this.decodingFormat.createRuntimeDecoder(runtimeProviderContext, formatSchema.toRowDataType());
+			return new KafkaTableDeserializer(deserializationSchema, timestampIndex);
+		} else {
+			DeserializationSchema<RowData> deserializationSchema =
+				this.decodingFormat.createRuntimeDecoder(runtimeProviderContext, this.physicalTableSchema.toRowDataType());
+			return new DeserializationSchemaWrapper<>(deserializationSchema);
+		}
 	}
 
 	private OffsetsInitializer getOffsetInitializer() {
@@ -161,7 +190,7 @@ public class KafkaDynamicSource implements ScanTableSource {
 			return false;
 		}
 		final KafkaDynamicSource that = (KafkaDynamicSource) o;
-		return Objects.equals(outputDataType, that.outputDataType) &&
+		return Objects.equals(physicalTableSchema, that.physicalTableSchema) &&
 			Objects.equals(topic, that.topic) &&
 			Objects.equals(properties, that.properties) &&
 			Objects.equals(decodingFormat, that.decodingFormat) &&
@@ -173,7 +202,7 @@ public class KafkaDynamicSource implements ScanTableSource {
 	@Override
 	public int hashCode() {
 		return Objects.hash(
-			outputDataType,
+			physicalTableSchema,
 			topic,
 			properties,
 			decodingFormat,
@@ -185,13 +214,14 @@ public class KafkaDynamicSource implements ScanTableSource {
 	@Override
 	public DynamicTableSource copy() {
 		return new KafkaDynamicSource(
-				this.outputDataType,
+				this.physicalTableSchema,
 				this.topic,
 				this.properties,
 				this.decodingFormat,
 				this.startupMode,
 				this.specificStartupOffsets,
-				this.startupTimestampMillis);
+				this.startupTimestampMillis,
+				this.timestampIndex);
 	}
 
 	@Override
