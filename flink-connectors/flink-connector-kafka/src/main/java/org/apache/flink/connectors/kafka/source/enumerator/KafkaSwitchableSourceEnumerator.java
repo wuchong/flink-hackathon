@@ -33,8 +33,8 @@ import java.util.Set;
  * The enumerator class for Kafka source.
  */
 @Internal
-public class KafkaSwitchableSourceEnumerator<T> extends KafkaSourceEnumerator
-	implements SwitchableSplitEnumerator<KafkaPartitionSplit, KafkaSourceEnumState, T, Void> {
+public class KafkaSwitchableSourceEnumerator extends KafkaSourceEnumerator
+	implements SwitchableSplitEnumerator<KafkaPartitionSplit, KafkaSourceEnumState, Long, Void> {
 
 	public KafkaSwitchableSourceEnumerator(KafkaSubscriber subscriber, OffsetsInitializer startingOffsetInitializer,
 										   OffsetsInitializer stoppingOffsetInitializer, Properties properties, SplitEnumeratorContext<KafkaPartitionSplit> context) {
@@ -47,10 +47,8 @@ public class KafkaSwitchableSourceEnumerator<T> extends KafkaSourceEnumerator
 	}
 
 	@Override
-	public void setStartState(T startState) {
-		if (startState instanceof Long) {
-			this.startingOffsetInitializer = OffsetsInitializer.timestamps((Long) startState);
-		}
+	public void setStartState(Long startState) {
+		this.startingOffsetInitializer = OffsetsInitializer.timestamps(startState);
 	}
 
 	@Override

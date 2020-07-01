@@ -32,10 +32,10 @@ import java.util.Collection;
 /**
  * The Source implementation of Kafka.
  *
- * @param <T> the end state type of the source.
+ * @param <OUT> the end state type of the source.
  */
-public class FileSwitchableSource<OUT, T> extends FileSource<OUT>
-	implements SwitchableSource<OUT, FileSourceSplit, PendingSplitsCheckpoint, Void, T> {
+public class FileSwitchableSource<OUT> extends FileSource<OUT>
+	implements SwitchableSource<OUT, FileSourceSplit, PendingSplitsCheckpoint, Void, Long> {
 
 	public FileSwitchableSource(Path... inputPaths) {
 		super(inputPaths);
@@ -46,7 +46,7 @@ public class FileSwitchableSource<OUT, T> extends FileSource<OUT>
 	}
 
 	@Override
-	public SwitchableSplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint, Void, T> createEnumerator(SplitEnumeratorContext<FileSourceSplit> enumContext) {
+	public SwitchableSplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint, Void, Long> createEnumerator(SplitEnumeratorContext<FileSourceSplit> enumContext) {
 		final FileEnumerator enumerator = enumeratorFactory.create();
 		final Collection<FileSourceSplit> splits;
 		try {
@@ -59,15 +59,15 @@ public class FileSwitchableSource<OUT, T> extends FileSource<OUT>
 	}
 
 	@Override
-	public SwitchableSplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint, Void, T> restoreEnumerator(SplitEnumeratorContext<FileSourceSplit> enumContext, PendingSplitsCheckpoint checkpoint) throws IOException {
+	public SwitchableSplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint, Void, Long> restoreEnumerator(SplitEnumeratorContext<FileSourceSplit> enumContext, PendingSplitsCheckpoint checkpoint) throws IOException {
 		return createSwitchableSplitEnumerator(enumContext, checkpoint.getSplits());
 	}
 
-	private SwitchableSplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint, Void, T> createSwitchableSplitEnumerator(
+	private SwitchableSplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint, Void, Long> createSwitchableSplitEnumerator(
 		SplitEnumeratorContext<FileSourceSplit> context,
 		Collection<FileSourceSplit> splits) {
 
 		final FileSplitAssigner splitAssigner = assignerFactory.create(splits);
-		return new StaticFileSwitchableSplitEnumerator<T>(context, splitAssigner);
+		return new StaticFileSwitchableSplitEnumerator(context, splitAssigner);
 	}
 }

@@ -22,6 +22,7 @@ import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.hybrid.SwitchableSplitEnumerator;
 import org.apache.flink.connector.file.src.assigners.FileSplitAssigner;
 import org.apache.flink.connector.file.src.enumerate.FileEnumerator;
+import org.apache.flink.connector.file.src.hybrid.HybridUtils;
 
 /**
  * A SplitEnumerator implementation for bounded / batch {@link FileSource} input.
@@ -33,8 +34,8 @@ import org.apache.flink.connector.file.src.enumerate.FileEnumerator;
  * FileSourceSplits to process, and the logic to decide which reader gets what split, are in
  * {@link FileEnumerator} and in {@link FileSplitAssigner}, respectively.
  */
-public class StaticFileSwitchableSplitEnumerator<T> extends StaticFileSplitEnumerator
-	implements SwitchableSplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint, Void, T> {
+public class StaticFileSwitchableSplitEnumerator extends StaticFileSplitEnumerator
+	implements SwitchableSplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint, Void, Long> {
 
 	public StaticFileSwitchableSplitEnumerator(SplitEnumeratorContext<FileSourceSplit> context, FileSplitAssigner splitAssigner) {
 		super(context, splitAssigner);
@@ -45,7 +46,7 @@ public class StaticFileSwitchableSplitEnumerator<T> extends StaticFileSplitEnume
 	}
 
 	@Override
-	public T getEndState() {
-		return null;
+	public Long getEndState() {
+		return HybridUtils.getEndState(null);
 	}
 }

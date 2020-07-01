@@ -51,16 +51,25 @@ import java.util.function.Supplier;
  *
  * @param <OUT> the output type of the source.
  */
-public class KafkaSwitchableSource<OUT, T> extends KafkaSource<OUT>
-	implements SwitchableSource<OUT, KafkaPartitionSplit, KafkaSourceEnumState, T, Void> {
+public class KafkaSwitchableSource<OUT> extends KafkaSource<OUT>
+	implements SwitchableSource<OUT, KafkaPartitionSplit, KafkaSourceEnumState, Long, Void> {
 
 	KafkaSwitchableSource(KafkaSubscriber subscriber, OffsetsInitializer startingOffsetsInitializer, @Nullable OffsetsInitializer stoppingOffsetsInitializer, Boundedness boundedness, KafkaDeserializer<OUT> deserializationSchema, Properties props) {
 		super(subscriber, startingOffsetsInitializer, stoppingOffsetsInitializer, boundedness, deserializationSchema, props);
 	}
 
+	/**
+	 * Get a kafkaSwitchableSourceBuilderto build a {@link KafkaSource}.
+	 *
+	 * @return a Kafka source builder.
+	 */
+	public static <OUT> KafkaSwitchableSourceBuilder<OUT> builder() {
+		return new KafkaSwitchableSourceBuilder<>();
+	}
+
 	@Override
-	public SwitchableSplitEnumerator<KafkaPartitionSplit, KafkaSourceEnumState, T, Void> createEnumerator(SplitEnumeratorContext<KafkaPartitionSplit> enumContext) {
-		return new KafkaSwitchableSourceEnumerator<T>(
+	public SwitchableSplitEnumerator<KafkaPartitionSplit, KafkaSourceEnumState, Long, Void> createEnumerator(SplitEnumeratorContext<KafkaPartitionSplit> enumContext) {
+		return new KafkaSwitchableSourceEnumerator(
 			subscriber,
 			startingOffsetsInitializer,
 			stoppingOffsetsInitializer,
@@ -69,8 +78,8 @@ public class KafkaSwitchableSource<OUT, T> extends KafkaSource<OUT>
 	}
 
 	@Override
-	public SwitchableSplitEnumerator<KafkaPartitionSplit, KafkaSourceEnumState, T, Void> restoreEnumerator(SplitEnumeratorContext<KafkaPartitionSplit> enumContext, KafkaSourceEnumState checkpoint) throws IOException {
-		return new KafkaSwitchableSourceEnumerator<T>(
+	public SwitchableSplitEnumerator<KafkaPartitionSplit, KafkaSourceEnumState, Long, Void> restoreEnumerator(SplitEnumeratorContext<KafkaPartitionSplit> enumContext, KafkaSourceEnumState checkpoint) throws IOException {
+		return new KafkaSwitchableSourceEnumerator(
 			subscriber,
 			startingOffsetsInitializer,
 			stoppingOffsetsInitializer,
