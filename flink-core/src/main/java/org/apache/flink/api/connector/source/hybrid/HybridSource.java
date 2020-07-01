@@ -36,16 +36,18 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 /**
  * The source implementation for hybrid two or more sources.
  */
-public class HybridSource<T, SplitT1 extends SourceSplit, SplitT2 extends SourceSplit, EnumChkT1, EnumChkT2>
-		implements Source<T, HybridSourceSplit<SplitT1, SplitT2>, HybridSourceEnumState<EnumChkT1, EnumChkT2>> {
+public class HybridSource<T, SplitT1 extends SourceSplit, SplitT2 extends SourceSplit, EnumChkT1, EnumChkT2,
+	SwitchStateT>
+	implements Source<T, HybridSourceSplit<SplitT1, SplitT2>, HybridSourceEnumState<EnumChkT1, EnumChkT2>> {
 
 	private static final long serialVersionUID = 3590970584442381319L;
-	private final Source<T, SplitT1, EnumChkT1> firstSource;
-	private final Source<T, SplitT2, EnumChkT2> secondSource;
+
+	private final SwitchableSource<T, SplitT1, EnumChkT1, ?, SwitchStateT> firstSource;
+	private final SwitchableSource<T, SplitT2, EnumChkT2, SwitchStateT, ?> secondSource;
 
 	HybridSource(
-			Source<T, SplitT1, EnumChkT1> firstSource,
-			Source<T, SplitT2, EnumChkT2> secondSource) {
+		SwitchableSource<T, SplitT1, EnumChkT1, ?, SwitchStateT> firstSource,
+		SwitchableSource<T, SplitT2, EnumChkT2, SwitchStateT, ?> secondSource) {
 		checkArgument(firstSource.getBoundedness() == Boundedness.BOUNDED);
 		this.firstSource = firstSource;
 		this.secondSource = secondSource;
@@ -57,7 +59,7 @@ public class HybridSource<T, SplitT1 extends SourceSplit, SplitT2 extends Source
 	 * @return a hybrid source builder.
 	 */
 	public static <OUT, SplitT1 extends SourceSplit, SplitT2 extends SourceSplit, EnumChkT1, EnumChkT2, SwitchT>
-			HybridSourceBuilder<OUT, SplitT1, SplitT2, EnumChkT1, EnumChkT2, SwitchT> builder() {
+	HybridSourceBuilder<OUT, SplitT1, SplitT2, EnumChkT1, EnumChkT2, SwitchT> builder() {
 		return new HybridSourceBuilder<>();
 	}
 
@@ -79,15 +81,15 @@ public class HybridSource<T, SplitT1 extends SourceSplit, SplitT2 extends Source
 		Map<Integer, Boolean> readerIdToCompletion = new HashMap<>();
 		SplitEnumeratorContext<SplitT1> firstEnumContext = new DelegatedSplitEnumeratorContext.FirstSourceSplitEnumeratorContext<>(enumContext, readerIdToCompletion);
 		SplitEnumeratorContext<SplitT2> secondEnumContext = new DelegatedSplitEnumeratorContext.SecondSourceSplitEnumeratorContext<>(enumContext);
-		SplitEnumerator<SplitT1, EnumChkT1> firstEnumerator = firstSource.createEnumerator(firstEnumContext);
-		SplitEnumerator<SplitT2, EnumChkT2> secondEnumerator = secondSource.createEnumerator(secondEnumContext);
+		SwitchableSplitEnumerator<SplitT1, EnumChkT1, ?, SwitchStateT> firstEnumerator = firstSource.createEnumerator(firstEnumContext);
+		SwitchableSplitEnumerator<SplitT2, EnumChkT2, SwitchStateT, ?> secondEnumerator = secondSource.createEnumerator(secondEnumContext);
 		return new HybridSplitEnumerator<>(enumContext, firstEnumerator, secondEnumerator, readerIdToCompletion);
 	}
 
 	@Override
 	public SplitEnumerator<HybridSourceSplit<SplitT1, SplitT2>, HybridSourceEnumState<EnumChkT1, EnumChkT2>> restoreEnumerator(
-			SplitEnumeratorContext<HybridSourceSplit<SplitT1, SplitT2>> enumContext,
-			HybridSourceEnumState<EnumChkT1, EnumChkT2> checkpoint) throws IOException {
+		SplitEnumeratorContext<HybridSourceSplit<SplitT1, SplitT2>> enumContext,
+		HybridSourceEnumState<EnumChkT1, EnumChkT2> checkpoint) throws IOException {
 		Map<Integer, Boolean> readerIdToCompletion = new HashMap<>();
 		SplitEnumeratorContext<SplitT1> firstEnumContext = new DelegatedSplitEnumeratorContext.FirstSourceSplitEnumeratorContext<>(enumContext, readerIdToCompletion);
 		SplitEnumeratorContext<SplitT2> secondEnumContext = new DelegatedSplitEnumeratorContext.SecondSourceSplitEnumeratorContext<>(enumContext);
@@ -95,8 +97,8 @@ public class HybridSource<T, SplitT1 extends SourceSplit, SplitT2 extends Source
 		EnumChkT1 firstEnumState = checkpoint.getFirstSourceEnumState();
 		EnumChkT2 secondEnumState = checkpoint.getSecondSourceEnumState();
 
-		SplitEnumerator<SplitT1, EnumChkT1> firstEnumerator;
-		SplitEnumerator<SplitT2, EnumChkT2> secondEnumerator;
+		SwitchableSplitEnumerator<SplitT1, EnumChkT1, ?, SwitchStateT> firstEnumerator;
+		SwitchableSplitEnumerator<SplitT2, EnumChkT2, SwitchStateT, ?> secondEnumerator;
 		if (inFirstSourceMode) {
 			firstEnumerator = firstSource.restoreEnumerator(firstEnumContext, firstEnumState);
 			// do not need to restore second enumerator

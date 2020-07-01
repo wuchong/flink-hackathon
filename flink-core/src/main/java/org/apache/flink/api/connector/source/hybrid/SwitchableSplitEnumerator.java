@@ -24,10 +24,10 @@ import org.apache.flink.api.connector.source.SplitEnumerator;
 /**
  * The interface of {@link SwitchableSplitEnumerator}.
  */
-public interface SwitchableSplitEnumerator<SwitchOut, SwitchIn, SplitT extends SourceSplit, CheckpointT> extends SplitEnumerator<SplitT, CheckpointT> {
+public interface SwitchableSplitEnumerator<SplitT extends SourceSplit, CheckpointT, StartStateT, EndStateT>
+	extends SplitEnumerator<SplitT, CheckpointT> {
 
-	SwitchOut switchEnd();
+	void setStartState(StartStateT startState);
 
-	void switchStart(SwitchIn initialOffset);
-
+	EndStateT getEndState();
 }

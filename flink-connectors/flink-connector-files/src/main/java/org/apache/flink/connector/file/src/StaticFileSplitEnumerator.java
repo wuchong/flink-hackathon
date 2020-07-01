@@ -56,7 +56,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * many tasks will starve to death.
  */
 public class StaticFileSplitEnumerator implements
-		SwitchableSplitEnumerator<Long, Void, FileSourceSplit, PendingSplitsCheckpoint> {
+	SwitchableSplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint, Void, Long> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StaticFileSplitEnumerator.class);
 
@@ -67,8 +67,8 @@ public class StaticFileSplitEnumerator implements
 	// ------------------------------------------------------------------------
 
 	public StaticFileSplitEnumerator(
-			SplitEnumeratorContext<FileSourceSplit> context,
-			FileSplitAssigner splitAssigner) {
+		SplitEnumeratorContext<FileSourceSplit> context,
+		FileSplitAssigner splitAssigner) {
 		this.context = checkNotNull(context);
 		this.splitAssigner = checkNotNull(splitAssigner);
 	}
@@ -93,8 +93,7 @@ public class StaticFileSplitEnumerator implements
 		if (sourceEvent instanceof RequestSplitEvent) {
 			final RequestSplitEvent requestSplitEvent = (RequestSplitEvent) sourceEvent;
 			assignNextEvents(subtaskId, requestSplitEvent.hostName());
-		}
-		else {
+		} else {
 			LOG.error("Received unrecognized event: {}", sourceEvent);
 		}
 	}
@@ -123,20 +122,19 @@ public class StaticFileSplitEnumerator implements
 			final FileSourceSplit split = nextSplit.get();
 			context.assignSplit(split, subtask);
 			LOG.info("Assigned split to subtask {} : {}", subtask, split);
-		}
-		else {
+		} else {
 			context.sendEventToSourceReader(subtask, new NoMoreSplitsEvent());
 			LOG.info("No more splits available for subtask {}", subtask);
 		}
 	}
 
 	@Override
-	public Long switchEnd() {
-		return splitAssigner.switchEnd();
+	public void setStartState(Void startState) {
+		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public void switchStart(Void initialOffset) {
-		throw new UnsupportedOperationException();
+	public Long getEndState() {
+		return splitAssigner.switchEnd();
 	}
 }

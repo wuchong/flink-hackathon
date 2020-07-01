@@ -36,7 +36,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * The implementation of {@link SourceReader} for {@link HybridSource}.
  */
 public class HybridSourceReader<T, SplitT1 extends SourceSplit, SplitT2 extends SourceSplit>
-		implements SourceReader<T, HybridSourceSplit<SplitT1, SplitT2>> {
+	implements SourceReader<T, HybridSourceSplit<SplitT1, SplitT2>> {
 
 	private final SourceReaderContext context;
 	private final SourceReader<T, SplitT1> firstReader;
@@ -44,9 +44,9 @@ public class HybridSourceReader<T, SplitT1 extends SourceSplit, SplitT2 extends 
 	private boolean inFirstSourceMode = true;
 
 	public HybridSourceReader(
-			SourceReaderContext context,
-			SourceReader<T, SplitT1> firstReader,
-			SourceReader<T, SplitT2> secondReader) {
+		SourceReaderContext context,
+		SourceReader<T, SplitT1> firstReader,
+		SourceReader<T, SplitT2> secondReader) {
 		this.context = context;
 		this.firstReader = firstReader;
 		this.secondReader = secondReader;
@@ -83,7 +83,7 @@ public class HybridSourceReader<T, SplitT1 extends SourceSplit, SplitT2 extends 
 		secondReader.start();
 		// change the mode to second source mode
 		inFirstSourceMode = false;
-		// notify HybridSplitEnumerator
+		// notify HybridSplitEnumerator that the SourceReader finishes reading.
 		context.sendSourceEventToCoordinator(new SplitsFinishedEvent());
 	}
 

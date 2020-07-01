@@ -21,10 +21,12 @@ package org.apache.flink.api.connector.source.event;
 import org.apache.flink.api.connector.source.SourceEvent;
 
 /**
- * A source event sent from the SourceReader to SplitEnumerator to indicate that all the
- * assigned splits are finished.
+ * A source event sent from the SourceReader to the SplitEnumerator to indicate that all assigned
+ * splits have already been finished. So once the SplitEnumerator receives all source events of  the
+ * SourceReader, the SplitEnumerator could switch to another continue to read.
  */
 public class SplitsFinishedEvent implements SourceEvent {
+
 	private static final long serialVersionUID = 1L;
 
 	@Override

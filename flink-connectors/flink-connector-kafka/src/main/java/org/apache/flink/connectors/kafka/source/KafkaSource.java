@@ -19,11 +19,11 @@
 package org.apache.flink.connectors.kafka.source;
 
 import org.apache.flink.api.connector.source.Boundedness;
-import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
-import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
+import org.apache.flink.api.connector.source.hybrid.SwitchableSource;
+import org.apache.flink.api.connector.source.hybrid.SwitchableSplitEnumerator;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
@@ -54,7 +54,7 @@ import java.util.function.Supplier;
  *
  * @param <OUT> the output type of the source.
  */
-public class KafkaSource<OUT> implements Source<OUT, KafkaPartitionSplit, KafkaSourceEnumState> {
+public class KafkaSource<OUT> implements SwitchableSource<OUT, KafkaPartitionSplit, KafkaSourceEnumState, Long, Void> {
 	private static final long serialVersionUID = -8755372893283732098L;
 	// Users can choose only one of the following ways to specify the topics to consume from.
 	private final KafkaSubscriber subscriber;
@@ -115,7 +115,7 @@ public class KafkaSource<OUT> implements Source<OUT, KafkaPartitionSplit, KafkaS
 	}
 
 	@Override
-	public SplitEnumerator<KafkaPartitionSplit, KafkaSourceEnumState> createEnumerator(
+	public SwitchableSplitEnumerator<KafkaPartitionSplit, KafkaSourceEnumState, Long, Void> createEnumerator(
 		SplitEnumeratorContext<KafkaPartitionSplit> enumContext) {
 		return new KafkaSourceEnumerator(
 			subscriber,
@@ -126,7 +126,7 @@ public class KafkaSource<OUT> implements Source<OUT, KafkaPartitionSplit, KafkaS
 	}
 
 	@Override
-	public SplitEnumerator<KafkaPartitionSplit, KafkaSourceEnumState> restoreEnumerator(
+	public SwitchableSplitEnumerator<KafkaPartitionSplit, KafkaSourceEnumState, Long, Void> restoreEnumerator(
 		SplitEnumeratorContext<KafkaPartitionSplit> enumContext,
 		KafkaSourceEnumState checkpoint) throws IOException {
 		return new KafkaSourceEnumerator(
