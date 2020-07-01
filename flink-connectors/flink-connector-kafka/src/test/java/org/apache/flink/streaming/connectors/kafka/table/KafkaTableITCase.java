@@ -37,6 +37,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Properties;
+import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
@@ -62,7 +63,7 @@ public class KafkaTableITCase extends KafkaTableTestBase {
 			// skip tests for legacy connector, because changelog source is only supported in new connector
 			return;
 		}
-		final String topic = "changelog_topic";
+		final String topic = "changelog_topic_" + UUID.randomUUID().toString();
 		createTestTopic(topic, 1, 1);
 
 		// ---------- Write the Debezium json into Kafka -------------------
