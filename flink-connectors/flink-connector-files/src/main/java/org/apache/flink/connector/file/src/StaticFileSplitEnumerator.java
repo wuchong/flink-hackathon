@@ -21,6 +21,7 @@ package org.apache.flink.connector.file.src;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
+import org.apache.flink.api.connector.source.hybrid.SwitchableSplitEnumerator;
 import org.apache.flink.connector.base.source.event.NoMoreSplitsEvent;
 import org.apache.flink.connector.base.source.event.RequestSplitEvent;
 import org.apache.flink.connector.file.src.assigners.FileSplitAssigner;
@@ -54,7 +55,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * failover experience. And may have less slots, can not use dynamic split enumerator, otherwise,
  * many tasks will starve to death.
  */
-public class StaticFileSplitEnumerator implements SplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint> {
+public class StaticFileSplitEnumerator implements
+		SwitchableSplitEnumerator<Long, Void, FileSourceSplit, PendingSplitsCheckpoint> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StaticFileSplitEnumerator.class);
 
@@ -126,5 +128,15 @@ public class StaticFileSplitEnumerator implements SplitEnumerator<FileSourceSpli
 			context.sendEventToSourceReader(subtask, new NoMoreSplitsEvent());
 			LOG.info("No more splits available for subtask {}", subtask);
 		}
+	}
+
+	@Override
+	public Long switchEnd() {
+		return splitAssigner.switchEnd();
+	}
+
+	@Override
+	public void switchStart(Void initialOffset) {
+		throw new UnsupportedOperationException();
 	}
 }

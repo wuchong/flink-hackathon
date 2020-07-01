@@ -19,10 +19,17 @@
 package org.apache.flink.connector.file.src;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.FileUtils;
 
@@ -32,11 +39,19 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 
 /**
  */
 public class FileSourceITCase extends AbstractTestBase {
+
+	private static final TableSchema TEST_SCHEMA = TableSchema.builder()
+			.field("f0", DataTypes.STRING())
+			.field("f1", DataTypes.BIGINT())
+			.field("f2", DataTypes.BIGINT())
+			.build();
 
 	private Path path;
 
@@ -61,5 +76,21 @@ public class FileSourceITCase extends AbstractTestBase {
 				.returns(String.class);
 		Iterator<String> iter = DataStreamUtils.collect(stream);
 		System.out.println(IteratorUtils.toList(iter));
+	}
+
+	@Test
+	public void testTable() throws Exception {
+
+
+		Map<String, String> properties = new HashMap<>();
+		properties.put("connector", "filesystem");
+		properties.put("path", "filesystem");
+
+		DynamicTableSink sink = FactoryUtil.createTableSink(
+				null,
+				ObjectIdentifier.of("", "", ""),
+				new CatalogTableImpl(TEST_SCHEMA, properties, ""),
+				new Configuration(),
+				Thread.currentThread().getContextClassLoader());
 	}
 }

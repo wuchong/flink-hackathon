@@ -42,12 +42,11 @@ public class TestTextSplitReader implements FormatSplitReader<String> {
 	}
 
 	@Override
-	public boolean reachedEnd() {
-		return this.format.reachedEnd();
-	}
+	public String read() throws IOException {
+		if (this.format.reachedEnd()) {
+			return null;
+		}
 
-	@Override
-	public String nextRecord() throws IOException {
 		return this.format.nextRecord("");
 	}
 

@@ -19,6 +19,7 @@
 package org.apache.flink.formats.csv;
 
 import org.apache.flink.api.common.io.FileInputFormat;
+import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 
@@ -73,16 +74,21 @@ public abstract class AbstractCsvInputFormat<T> extends FileInputFormat<T> {
 		}
 	}
 
+	private long findNextLineStartOffset() throws IOException {
+		boolean usesEscapeChar = csvSchema.usesEscapeChar();
+		byte[] escapeBytes = Character.toString((char) csvSchema.getEscapeChar())
+				.getBytes(StandardCharsets.UTF_8);
+		return findNextLineStartOffset(stream, usesEscapeChar, escapeBytes);
+	}
+
 	/**
 	 * Find next legal line separator to return next offset (first byte offset of next line).
 	 *
 	 * <p>NOTE: Because of the particularity of UTF-8 encoding, we can determine the number of bytes
 	 * of this character only by comparing the first byte, so we do not need to traverse M*N in comparison.
 	 */
-	private long findNextLineStartOffset() throws IOException {
-		boolean usesEscapeChar = csvSchema.usesEscapeChar();
-		byte[] escapeBytes = Character.toString((char) csvSchema.getEscapeChar())
-				.getBytes(StandardCharsets.UTF_8);
+	public static long findNextLineStartOffset(
+			FSDataInputStream stream, boolean usesEscapeChar, byte[] escapeBytes) throws IOException {
 		long startPos = stream.getPos();
 
 		byte b;

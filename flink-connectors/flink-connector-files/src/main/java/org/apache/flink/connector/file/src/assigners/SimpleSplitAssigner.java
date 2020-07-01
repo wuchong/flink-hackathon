@@ -54,6 +54,11 @@ public class SimpleSplitAssigner implements FileSplitAssigner {
 		return splits;
 	}
 
+	@Override
+	public Long switchEnd() {
+		throw new UnsupportedOperationException();
+	}
+
 	// ------------------------------------------------------------------------
 
 	@Override

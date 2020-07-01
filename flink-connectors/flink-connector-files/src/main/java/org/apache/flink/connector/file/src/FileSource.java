@@ -19,11 +19,11 @@
 package org.apache.flink.connector.file.src;
 
 import org.apache.flink.api.connector.source.Boundedness;
-import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
-import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
+import org.apache.flink.api.connector.source.hybrid.SwitchableSource;
+import org.apache.flink.api.connector.source.hybrid.SwitchableSplitEnumerator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
@@ -48,15 +48,16 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <T> The type of the events/records produced by this source.
  */
-public class FileSource<T> implements Source<T, FileSourceSplit, PendingSplitsCheckpoint> {
+public final class FileSource<T> implements
+		SwitchableSource<T, FileSourceSplit, PendingSplitsCheckpoint, Long, Void> {
 
 	private static final long serialVersionUID = 1L;
 
-	protected final Path[] inputPaths;
+	private final Path[] inputPaths;
 
-	protected final FileEnumerator.Provider enumeratorFactory;
+	private final FileEnumerator.Provider enumeratorFactory;
 
-	protected final FileSplitAssigner.Provider assignerFactory;
+	private final FileSplitAssigner.Provider assignerFactory;
 
 	private Configuration config = new Configuration();
 
@@ -113,10 +114,6 @@ public class FileSource<T> implements Source<T, FileSourceSplit, PendingSplitsCh
 		return Boundedness.BOUNDED;
 	}
 
-	public Path[] getInputPaths() {
-		return inputPaths;
-	}
-
 	@Override
 	public SourceReader<T, FileSourceSplit> createReader(SourceReaderContext readerContext) {
 		FutureNotifier futureNotifier = new FutureNotifier();
@@ -136,9 +133,8 @@ public class FileSource<T> implements Source<T, FileSourceSplit, PendingSplitsCh
 	}
 
 	@Override
-	public SplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint> createEnumerator(
+	public SwitchableSplitEnumerator<Long, Void, FileSourceSplit, PendingSplitsCheckpoint> createEnumerator(
 			SplitEnumeratorContext<FileSourceSplit> enumContext) {
-
 		final FileEnumerator enumerator = enumeratorFactory.create();
 		final Collection<FileSourceSplit> splits;
 
@@ -153,11 +149,20 @@ public class FileSource<T> implements Source<T, FileSourceSplit, PendingSplitsCh
 	}
 
 	@Override
-	public SplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint> restoreEnumerator(
+	public SwitchableSplitEnumerator<Long, Void, FileSourceSplit, PendingSplitsCheckpoint> restoreEnumerator(
 			SplitEnumeratorContext<FileSourceSplit> enumContext,
 			PendingSplitsCheckpoint checkpoint) throws IOException {
+		final FileEnumerator enumerator = enumeratorFactory.create();
+		final Collection<FileSourceSplit> splits;
 
-		return createSplitEnumerator(enumContext, checkpoint.getSplits());
+		// TODO - in the next cleanup pass, we should try to remove the need to "wrap unchecked" here
+		try {
+			splits = enumerator.enumerateSplits(inputPaths, enumContext.currentParallelism());
+		} catch (IOException e) {
+			throw new FlinkRuntimeException("Could not enumerate file splits", e);
+		}
+
+		return createSplitEnumerator(enumContext, splits);
 	}
 
 	@Override
@@ -174,7 +179,7 @@ public class FileSource<T> implements Source<T, FileSourceSplit, PendingSplitsCh
 	//  helpers
 	// ------------------------------------------------------------------------
 
-	private SplitEnumerator<FileSourceSplit, PendingSplitsCheckpoint> createSplitEnumerator(
+	private SwitchableSplitEnumerator<Long, Void, FileSourceSplit, PendingSplitsCheckpoint> createSplitEnumerator(
 			SplitEnumeratorContext<FileSourceSplit> context,
 			Collection<FileSourceSplit> splits) {
 

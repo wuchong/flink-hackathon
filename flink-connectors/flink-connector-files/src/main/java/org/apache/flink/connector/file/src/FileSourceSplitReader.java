@@ -94,7 +94,7 @@ public class FileSourceSplitReader<T> implements SplitReader<Tuple2<T, Long>, Fi
 				break;
 			}
 			T record;
-			if (currentReader.reachedEnd() || (record = currentReader.nextRecord()) == null) {
+			if ((record = currentReader.read()) == null) {
 				recordsBySplits.addFinishedSplit(currentSplit.splitId());
 				if (!nextSplit()) {
 					break;
