@@ -18,6 +18,7 @@
 
 package org.apache.flink.connectors.kafka.source.reader.deserializer;
 
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.util.Collector;
 
@@ -33,6 +34,18 @@ import java.util.Map;
  * An interface for the deserialization of Kafka records.
  */
 public interface KafkaDeserializer<T> extends Serializable, ResultTypeQueryable<T> {
+
+	/**
+	 * Initialization method for the schema. It is called before the actual working methods
+	 * {@link #deserialize} and thus suitable for one time setup work.
+	 *
+	 * <p>The provided {@link DeserializationSchema.InitializationContext} can be used to access additional features such as e.g.
+	 * registering user metrics.
+	 *
+	 * @param context Contextual information that can be used during initialization.
+	 */
+	default void open(DeserializationSchema.InitializationContext context) throws Exception {
+	}
 
 	/**
 	 * Deserialize a consumer record into the given collector.
