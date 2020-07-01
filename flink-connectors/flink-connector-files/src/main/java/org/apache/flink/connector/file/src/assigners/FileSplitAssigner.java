@@ -52,6 +52,8 @@ public interface FileSplitAssigner {
 	 */
 	Collection<FileSourceSplit> remainingSplits();
 
+	Long switchEnd();
+
 	// ------------------------------------------------------------------------
 
 	/**

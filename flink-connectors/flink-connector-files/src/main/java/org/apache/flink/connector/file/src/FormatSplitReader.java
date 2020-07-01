@@ -21,6 +21,8 @@ package org.apache.flink.connector.file.src;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 
+import javax.annotation.Nullable;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
@@ -31,33 +33,18 @@ import java.io.Serializable;
  */
 public interface FormatSplitReader<T> extends Closeable {
 
-	/**
-	 * Method used to check if the end of the input is reached.
-	 *
-	 * @return True if the end is reached, otherwise false.
-	 * @throws IOException Thrown, if an I/O error occurred.
-	 */
-	boolean reachedEnd() throws IOException;
-
-	/**
-	 * Reads the next record from the input.
-	 *
-	 * @return Read record.
-	 *
-	 * @throws IOException Thrown, if an I/O error occurred.
-	 */
-	T nextRecord() throws IOException;
+	@Nullable
+	T read() throws IOException;
 
 	/**
 	 * Seek to a particular row number.
 	 */
 	default void seekToRow(long rowCount) throws IOException {
 		for (int i = 0; i < rowCount; i++) {
-			boolean end = reachedEnd();
-			if (end) {
+			T t = read();
+			if (t == null) {
 				throw new RuntimeException("Seek too many rows.");
 			}
-			nextRecord();
 		}
 	}
 
