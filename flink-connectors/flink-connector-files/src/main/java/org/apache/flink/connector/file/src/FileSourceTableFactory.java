@@ -1,7 +1,7 @@
 package org.apache.flink.connector.file.src;
 
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.src.assigners.FileSplitAssigner;
 import org.apache.flink.connector.file.src.assigners.SimpleSplitAssigner;
 import org.apache.flink.connector.file.src.directory.DirectoryHelper;
@@ -16,6 +16,7 @@ import org.apache.flink.table.types.logical.RowType;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
@@ -41,7 +42,9 @@ public class FileSourceTableFactory implements DynamicTableSourceFactory {
 
 	@Override
 	public DynamicTableSource createDynamicTableSource(Context context) {
-		ReadableConfig config = context.getConfiguration();
+		Map<String, String> options = context.getCatalogTable().getOptions();
+		Configuration config = new Configuration();
+		options.forEach(config::setString);
 		Path path = new Path(config.getOptional(PATH).orElseThrow(() ->
 				new ValidationException("Path should be not empty.")));
 		boolean directoryFilter = config.get(DIRECTORY_FILTER_ENABLE);

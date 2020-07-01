@@ -22,6 +22,7 @@ import static java.time.temporal.ChronoField.MONTH_OF_YEAR;
 import static java.time.temporal.ChronoField.SECOND_OF_MINUTE;
 import static java.time.temporal.ChronoField.YEAR;
 import static org.apache.commons.lang3.time.DateUtils.MILLIS_PER_DAY;
+import static org.apache.flink.table.utils.PartitionPathUtils.extractPartitionValues;
 
 public class DirectoryHelper {
 
@@ -75,7 +76,7 @@ public class DirectoryHelper {
 	}
 
 	private static long extractDirectoryTime(Path path) {
-		return toMills(toLocalDateTime(path.getName()));
+		return toMills(toLocalDateTime(extractPartitionValues(path).get(0)));
 	}
 
 	private static LocalDateTime toLocalDateTime(String timestampString) {

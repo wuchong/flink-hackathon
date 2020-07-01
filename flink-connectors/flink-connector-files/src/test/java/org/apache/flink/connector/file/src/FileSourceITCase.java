@@ -19,6 +19,7 @@
 package org.apache.flink.connector.file.src;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -28,17 +29,16 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.source.SourceProvider;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.FileUtils;
 
 import org.apache.commons.collections.IteratorUtils;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -47,24 +47,13 @@ import java.util.Map;
  */
 public class FileSourceITCase extends AbstractTestBase {
 
-	private static final TableSchema TEST_SCHEMA = TableSchema.builder()
-			.field("f0", DataTypes.STRING())
-			.field("f1", DataTypes.BIGINT())
-			.field("f2", DataTypes.BIGINT())
-			.build();
-
-	private Path path;
-
-	@Before
-	public void before() throws IOException {
+	@Test
+	public void test() throws Exception {
 		String[] inputData = new String[] {"A", "B", "C", "D", "E"};
 		File file = TEMPORARY_FOLDER.newFile();
 		FileUtils.writeFileUtf8(file, String.join("\n", inputData));
-		this.path = new Path(file.toURI().toString());
-	}
+		Path path = new Path(file.toURI().toString());
 
-	@Test
-	public void test() throws Exception {
 		FileSource<String> source = new FileSource<>(path);
 		source.setFormatSplitReader(new TestTextSplitReader.Factory());
 
@@ -80,17 +69,74 @@ public class FileSourceITCase extends AbstractTestBase {
 
 	@Test
 	public void testTable() throws Exception {
+		TableSchema TEST_SCHEMA = TableSchema.builder()
+				.field("f0", DataTypes.STRING())
+				.field("f1", DataTypes.BIGINT())
+				.field("f2", DataTypes.BIGINT())
+				.build();
 
+		File folder = TEMPORARY_FOLDER.newFolder();
 
+		{
+			File subFolder = new File(folder, "a=2020-08-09 22%3A22%3A15");
+			subFolder.mkdir();
+
+			File file = new File(subFolder, "file0");
+			file.createNewFile();
+			String[] inputData = new String[]{"A,1,1", "B,2,2", "C,3,3"};
+			FileUtils.writeFileUtf8(file, String.join("\n", inputData));
+
+			File success = new File(subFolder, "_SUCCESS");
+			success.createNewFile();
+		}
+
+		{
+			File subFolder = new File(folder, "a=2020-08-10 22%3A22%3A15");
+			subFolder.mkdir();
+
+			File file = new File(subFolder, "file1");
+			file.createNewFile();
+			String[] inputData = new String[]{"D,4,4", "E,5,5"};
+			FileUtils.writeFileUtf8(file, String.join("\n", inputData));
+
+			File success = new File(subFolder, "_SUCCESS");
+			success.createNewFile();
+		}
+
+		{
+			File subFolder = new File(folder, "a=2020-08-11 22%3A22%3A15");
+			subFolder.mkdir();
+
+			File file = new File(subFolder, "file3");
+			file.createNewFile();
+			String[] inputData = new String[]{"F,6,6"};
+			FileUtils.writeFileUtf8(file, String.join("\n", inputData));
+
+			// No success file
+		}
+
+		Path path = new Path(folder.toURI().toString());
 		Map<String, String> properties = new HashMap<>();
 		properties.put("connector", "filesystem");
-		properties.put("path", "filesystem");
+		properties.put("path", path.getPath());
+		properties.put(FileSourceTableFactory.DIRECTORY_FILTER_ENABLE.key(), "true");
+		properties.put("format", "csv");
 
-		DynamicTableSink sink = FactoryUtil.createTableSink(
+		FileDynamicTableSource sink = (FileDynamicTableSource) FactoryUtil.createTableSource(
 				null,
 				ObjectIdentifier.of("", "", ""),
 				new CatalogTableImpl(TEST_SCHEMA, properties, ""),
 				new Configuration(),
 				Thread.currentThread().getContextClassLoader());
+
+		Source<RowData, ?, ?> source = ((SourceProvider) sink.getScanRuntimeProvider(null)).createSource();
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		DataStream<RowData> stream = env.fromSource(
+				source,
+				WatermarkStrategy.noWatermarks(),
+				"file-source")
+				.returns(RowData.class);
+		Iterator<RowData> iter = DataStreamUtils.collect(stream);
+		System.out.println(IteratorUtils.toList(iter));
 	}
 }
