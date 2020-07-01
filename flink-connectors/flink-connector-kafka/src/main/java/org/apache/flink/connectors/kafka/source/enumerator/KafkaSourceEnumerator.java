@@ -360,6 +360,7 @@ public class KafkaSourceEnumerator implements SwitchableSplitEnumerator<KafkaPar
 
 	@Override
 	public void setStartState(Long startState) {
+		LOG.info("Switching from FileSystem to Kafka offset: [timestamp={}]", startState);
 		this.startingOffsetInitializer = OffsetsInitializer.timestamps(startState);
 	}
 
