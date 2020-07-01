@@ -131,7 +131,7 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends T
 		// Add a split to start the fetcher.
 		List<SplitT> splits = getSplits(NUM_SPLITS, NUM_RECORDS_PER_SPLIT, Boundedness.CONTINUOUS_UNBOUNDED);
 		try (SourceReader<Integer, SplitT> reader =
-				 consumeRecords(splits, output, NUM_SPLITS * NUM_RECORDS_PER_SPLIT)) {
+				consumeRecords(splits, output, NUM_SPLITS * NUM_RECORDS_PER_SPLIT)) {
 			List<SplitT> state = reader.snapshotState();
 			assertEquals("The snapshot should only have 10 splits. ", NUM_SPLITS, state.size());
 			for (int i = 0; i < NUM_SPLITS; i++) {

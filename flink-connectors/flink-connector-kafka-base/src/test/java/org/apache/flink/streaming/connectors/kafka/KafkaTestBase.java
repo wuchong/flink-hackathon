@@ -206,7 +206,6 @@ public abstract class KafkaTestBase extends TestLogger {
 		kafkaServer.deleteTestTopic(topic);
 	}
 
-
 	public static <K, V> void produceToKafka(
 		Collection<ProducerRecord<K, V>> records,
 		Class<? extends org.apache.kafka.common.serialization.Serializer<K>> keySerializerClass,
