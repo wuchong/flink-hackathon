@@ -113,6 +113,10 @@ public final class FileSource<T> implements Source<T, FileSourceSplit, PendingSp
 		return Boundedness.BOUNDED;
 	}
 
+	public Path[] getInputPaths() {
+		return inputPaths;
+	}
+
 	@Override
 	public SourceReader<T, FileSourceSplit> createReader(SourceReaderContext readerContext) {
 		FutureNotifier futureNotifier = new FutureNotifier();
