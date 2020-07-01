@@ -36,8 +36,8 @@ public class HybridSourceEnumStateSerializer<EnumChkT1, EnumChkT2> implements Si
 	private final SimpleVersionedSerializer<EnumChkT2> secondSourceEnumStateSerializer;
 
 	public HybridSourceEnumStateSerializer(
-			SimpleVersionedSerializer<EnumChkT1> firstSourceEnumStateSerializer,
-			SimpleVersionedSerializer<EnumChkT2> secondSourceEnumStateSerializer) {
+		SimpleVersionedSerializer<EnumChkT1> firstSourceEnumStateSerializer,
+		SimpleVersionedSerializer<EnumChkT2> secondSourceEnumStateSerializer) {
 		this.firstSourceEnumStateSerializer = firstSourceEnumStateSerializer;
 		this.secondSourceEnumStateSerializer = secondSourceEnumStateSerializer;
 	}
@@ -51,7 +51,7 @@ public class HybridSourceEnumStateSerializer<EnumChkT1, EnumChkT2> implements Si
 	@Override
 	public byte[] serialize(HybridSourceEnumState<EnumChkT1, EnumChkT2> enumState) throws IOException {
 		try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
-				DataOutputStream out = new DataOutputStream(baos)) {
+			 DataOutputStream out = new DataOutputStream(baos)) {
 			boolean isFirstEnumState = enumState.isFirstSourceEnumState();
 			out.writeBoolean(isFirstEnumState);
 			if (isFirstEnumState) {
@@ -72,7 +72,7 @@ public class HybridSourceEnumStateSerializer<EnumChkT1, EnumChkT2> implements Si
 	@Override
 	public HybridSourceEnumState<EnumChkT1, EnumChkT2> deserialize(int version, byte[] serialized) throws IOException {
 		try (ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
-				DataInputStream in = new DataInputStream(bais)) {
+			 DataInputStream in = new DataInputStream(bais)) {
 			boolean isFirstEnumState = in.readBoolean();
 			int size = in.readInt();
 			byte[] bytes = new byte[size];

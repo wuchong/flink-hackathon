@@ -41,15 +41,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * @param <T> The type of the events/records produced by this source.
  */
-public final class FileSource<T> implements Source<T, FileSourceSplit, PendingSplitsCheckpoint> {
+public class FileSource<T> implements Source<T, FileSourceSplit, PendingSplitsCheckpoint> {
 
 	private static final long serialVersionUID = 1L;
 
-	private final Path[] inputPaths;
+	protected final Path[] inputPaths;
 
-	private final FileEnumerator.Provider enumeratorFactory;
+	protected final FileEnumerator.Provider enumeratorFactory;
 
-	private final FileSplitAssigner.Provider assignerFactory;
+	protected final FileSplitAssigner.Provider assignerFactory;
 
 
 	// ------------------------------------------------------------------------

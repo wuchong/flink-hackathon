@@ -31,15 +31,15 @@ import java.io.IOException;
  * The serializer for {@link SourceSplit}.
  */
 public class HybridSourceSplitSerializer<SplitT1 extends SourceSplit, SplitT2 extends SourceSplit>
-		implements SimpleVersionedSerializer<HybridSourceSplit<SplitT1, SplitT2>> {
+	implements SimpleVersionedSerializer<HybridSourceSplit<SplitT1, SplitT2>> {
 
 	private static final int CURRENT_VERSION = 0;
 	private final SimpleVersionedSerializer<SplitT1> firstSourceSplitSerializer;
 	private final SimpleVersionedSerializer<SplitT2> secondSourceSplitSerializer;
 
 	public HybridSourceSplitSerializer(
-			SimpleVersionedSerializer<SplitT1> firstSourceSplitSerializer,
-			SimpleVersionedSerializer<SplitT2> secondSourceSplitSerializer) {
+		SimpleVersionedSerializer<SplitT1> firstSourceSplitSerializer,
+		SimpleVersionedSerializer<SplitT2> secondSourceSplitSerializer) {
 		this.firstSourceSplitSerializer = firstSourceSplitSerializer;
 		this.secondSourceSplitSerializer = secondSourceSplitSerializer;
 	}
@@ -53,7 +53,7 @@ public class HybridSourceSplitSerializer<SplitT1 extends SourceSplit, SplitT2 ex
 	@Override
 	public byte[] serialize(HybridSourceSplit<SplitT1, SplitT2> split) throws IOException {
 		try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
-				DataOutputStream out = new DataOutputStream(baos)) {
+			 DataOutputStream out = new DataOutputStream(baos)) {
 			out.writeBoolean(split.isFirstSourceSplit());
 			if (split.isFirstSourceSplit()) {
 				out.write(firstSourceSplitSerializer.serialize(split.getFirstSourceSplit()));
@@ -68,7 +68,7 @@ public class HybridSourceSplitSerializer<SplitT1 extends SourceSplit, SplitT2 ex
 	@Override
 	public HybridSourceSplit<SplitT1, SplitT2> deserialize(int version, byte[] serialized) throws IOException {
 		try (ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
-				DataInputStream in = new DataInputStream(bais)) {
+			 DataInputStream in = new DataInputStream(bais)) {
 			boolean isFirstSourceSplit = in.readBoolean();
 			byte[] bytes = new byte[in.available()];
 			if (isFirstSourceSplit) {

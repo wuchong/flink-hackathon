@@ -65,7 +65,7 @@ import static org.apache.flink.util.ComponentClosingUtils.closeWithTimeout;
 public class KafkaSourceEnumerator implements SplitEnumerator<KafkaPartitionSplit, KafkaSourceEnumState> {
 	private static final Logger LOG = LoggerFactory.getLogger(KafkaSourceEnumerator.class);
 	private final KafkaSubscriber subscriber;
-	private final OffsetsInitializer startingOffsetInitializer;
+	protected OffsetsInitializer startingOffsetInitializer;
 	private final OffsetsInitializer stoppingOffsetInitializer;
 	private final Properties properties;
 	private final long partitionDiscoveryIntervalMs;

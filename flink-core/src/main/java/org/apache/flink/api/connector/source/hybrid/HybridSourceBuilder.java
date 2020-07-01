@@ -23,22 +23,22 @@ import org.apache.flink.api.connector.source.SourceSplit;
 /**
  * The base builder class for {@link HybridSource} to make it easier for the users to construct.
  */
-public class HybridSourceBuilder<OUT, SplitT1 extends SourceSplit, SplitT2 extends SourceSplit, EnumChkT1, EnumChkT2, SwitchT> {
+public class HybridSourceBuilder<OUT, SplitT1 extends SourceSplit, SplitT2 extends SourceSplit, EnumChkT1, EnumChkT2, SwitchStateT> {
 
-	private SwitchableSource<OUT, SplitT1, EnumChkT1, SwitchT, ?> firstSource;
-	private SwitchableSource<OUT, SplitT2, EnumChkT2, ?, SwitchT> secondSource;
+	private SwitchableSource<OUT, SplitT1, EnumChkT1, ?, SwitchStateT> firstSource;
+	private SwitchableSource<OUT, SplitT2, EnumChkT2, SwitchStateT, ?> secondSource;
 
-	public HybridSourceBuilder<OUT, SplitT1, SplitT2, EnumChkT1, EnumChkT2, SwitchT> addFirstSource(SwitchableSource<OUT, SplitT1, EnumChkT1, SwitchT, ?> firstSource) {
+	public HybridSourceBuilder<OUT, SplitT1, SplitT2, EnumChkT1, EnumChkT2, SwitchStateT> addFirstSource(SwitchableSource<OUT, SplitT1, EnumChkT1, ?,SwitchStateT> firstSource) {
 		this.firstSource = firstSource;
 		return this;
 	}
 
-	public HybridSourceBuilder<OUT, SplitT1, SplitT2, EnumChkT1, EnumChkT2, SwitchT> addSecondSource(SwitchableSource<OUT, SplitT2, EnumChkT2, ?, SwitchT> secondSource) {
+	public HybridSourceBuilder<OUT, SplitT1, SplitT2, EnumChkT1, EnumChkT2, SwitchStateT> addSecondSource(SwitchableSource<OUT, SplitT2, EnumChkT2, SwitchStateT, ?> secondSource) {
 		this.secondSource = secondSource;
 		return this;
 	}
 
-	public HybridSource<OUT, SplitT1, SplitT2, EnumChkT1, EnumChkT2> build() {
+	public HybridSource<OUT, SplitT1, SplitT2, EnumChkT1, EnumChkT2, SwitchStateT> build() {
 		return new HybridSource<>(firstSource, secondSource);
 	}
 }

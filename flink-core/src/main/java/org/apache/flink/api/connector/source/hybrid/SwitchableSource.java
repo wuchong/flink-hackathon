@@ -27,11 +27,9 @@ import java.io.IOException;
 /**
  * The interface of {@link SwitchableSource}.
  */
-public interface SwitchableSource<T, SplitT extends SourceSplit, EnumChkT, SwitchOut, SwitchIn> extends Source<T, SplitT, EnumChkT> {
+public interface SwitchableSource<T, SplitT extends SourceSplit, EnumChkT, StartStateT, EndStateT> extends Source<T, SplitT, EnumChkT> {
 
-	@Override
-	SwitchableSplitEnumerator<SwitchOut, SwitchIn, SplitT, EnumChkT> createEnumerator(SplitEnumeratorContext<SplitT> enumContext);
+	SwitchableSplitEnumerator<SplitT, EnumChkT, StartStateT, EndStateT> createEnumerator(SplitEnumeratorContext<SplitT> enumContext);
 
-	@Override
-	SwitchableSplitEnumerator<SwitchOut, SwitchIn, SplitT, EnumChkT> restoreEnumerator(SplitEnumeratorContext<SplitT> enumContext, EnumChkT checkpoint) throws IOException;
+	SwitchableSplitEnumerator<SplitT, EnumChkT, StartStateT, EndStateT> restoreEnumerator(SplitEnumeratorContext<SplitT> enumContext, EnumChkT checkpoint) throws IOException;
 }

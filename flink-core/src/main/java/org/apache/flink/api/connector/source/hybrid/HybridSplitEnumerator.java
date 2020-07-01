@@ -23,7 +23,6 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.event.SplitsFinishedEvent;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,33 +32,36 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The implementation of {@link SplitEnumerator} for {@link HybridSource}.
+ * The implementation of {@link SplitEnumerator} for {@link HybridSource}. HybridSplitEnumerator is responsible for the followings:
+ * 1. discover he splits for the {@link HybridSource} to read.
+ * 2. assign the splits to the corresponding source reader.
+ * 3. switch the split enumerator to another enumerator.
  */
-public class HybridSplitEnumerator<SplitT1 extends SourceSplit, SplitT2 extends SourceSplit, EnumChkT1, EnumChkT2>
-		implements SplitEnumerator<HybridSourceSplit<SplitT1, SplitT2>, HybridSourceEnumState<EnumChkT1, EnumChkT2>> {
+public class HybridSplitEnumerator<SplitT1 extends SourceSplit, SplitT2 extends SourceSplit, EnumChkT1, EnumChkT2, SwitchStateT>
+	implements SplitEnumerator<HybridSourceSplit<SplitT1, SplitT2>, HybridSourceEnumState<EnumChkT1, EnumChkT2>> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(HybridSplitEnumerator.class);
 
 	private final SplitEnumeratorContext<HybridSourceSplit<SplitT1, SplitT2>> context;
-	private final SplitEnumerator<SplitT1, EnumChkT1> firstEnumerator;
-	private final SplitEnumerator<SplitT2, EnumChkT2> secondEnumerator;
+	private final SwitchableSplitEnumerator<SplitT1, EnumChkT1, ?, SwitchStateT> firstEnumerator;
+	private final SwitchableSplitEnumerator<SplitT2, EnumChkT2, SwitchStateT, ?> secondEnumerator;
 	private final Map<Integer, Boolean> readerIdToCompletion;
-	private boolean inFirstSourceMode;
+	private volatile boolean inFirstSourceMode;
 
 	public HybridSplitEnumerator(
-			SplitEnumeratorContext<HybridSourceSplit<SplitT1, SplitT2>> context,
-			SplitEnumerator<SplitT1, EnumChkT1> firstEnumerator,
-			SplitEnumerator<SplitT2, EnumChkT2> secondEnumerator,
-			Map<Integer, Boolean> readerIdToCompletion) {
+		SplitEnumeratorContext<HybridSourceSplit<SplitT1, SplitT2>> context,
+		SwitchableSplitEnumerator<SplitT1, EnumChkT1, ?, SwitchStateT> firstEnumerator,
+		SwitchableSplitEnumerator<SplitT2, EnumChkT2, SwitchStateT, ?> secondEnumerator,
+		Map<Integer, Boolean> readerIdToCompletion) {
 		this(context, firstEnumerator, secondEnumerator, readerIdToCompletion, true);
 	}
 
 	public HybridSplitEnumerator(
-			SplitEnumeratorContext<HybridSourceSplit<SplitT1, SplitT2>> context,
-			SplitEnumerator<SplitT1, EnumChkT1> firstEnumerator,
-			SplitEnumerator<SplitT2, EnumChkT2> secondEnumerator,
-			Map<Integer, Boolean> readerIdToCompletion,
-			boolean inFirstSourceMode) {
+		SplitEnumeratorContext<HybridSourceSplit<SplitT1, SplitT2>> context,
+		SwitchableSplitEnumerator<SplitT1, EnumChkT1, ?, SwitchStateT> firstEnumerator,
+		SwitchableSplitEnumerator<SplitT2, EnumChkT2, SwitchStateT, ?> secondEnumerator,
+		Map<Integer, Boolean> readerIdToCompletion,
+		boolean inFirstSourceMode) {
 		this.context = context;
 		this.firstEnumerator = firstEnumerator;
 		this.secondEnumerator = secondEnumerator;
@@ -81,7 +83,8 @@ public class HybridSplitEnumerator<SplitT1 extends SourceSplit, SplitT2 extends 
 		if (inFirstSourceMode) {
 			if (sourceEvent instanceof SplitsFinishedEvent) {
 				readerIdToCompletion.put(subtaskId, true);
-				// all readers are finished
+				// When the HybridSplitEnumerator receives all  SplitsFinishedEvent from assigned SourceReader,
+				// the HybridSplitEnumerator should switch the numerator.
 				if (readerIdToCompletion.values().stream().allMatch(Boolean::booleanValue)) {
 					switchEnumerator();
 				}
@@ -93,19 +96,18 @@ public class HybridSplitEnumerator<SplitT1 extends SourceSplit, SplitT2 extends 
 		}
 	}
 
-	private void switchEnumerator() {
+	public void switchEnumerator() {
 		try {
 			firstEnumerator.close();
-			// TODO: switch offset to incremental enumerator
+			secondEnumerator.setStartState(firstEnumerator.getEndState());
 			secondEnumerator.start();
-			// notify second enumerator all the registered readers
-			context.registeredReaders().forEach((subtaskId, readerInfo) -> {
-				secondEnumerator.addReader(subtaskId);
+			context.registeredReaders().forEach((subTaskId, readerInfo) -> {
+				secondEnumerator.addReader(subTaskId);
 			});
 			inFirstSourceMode = false;
 		} catch (IOException e) {
-			LOG.error("Switching source enumerator failed", e);
-			throw new RuntimeException("Switching source enumerator failed.", e);
+			LOG.error("Switching split enumerator failed", e);
+			throw new RuntimeException("Switching split enumerator failed.", e);
 		}
 	}
 

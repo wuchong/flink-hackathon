@@ -57,15 +57,15 @@ import java.util.function.Supplier;
 public class KafkaSource<OUT> implements Source<OUT, KafkaPartitionSplit, KafkaSourceEnumState> {
 	private static final long serialVersionUID = -8755372893283732098L;
 	// Users can choose only one of the following ways to specify the topics to consume from.
-	private final KafkaSubscriber subscriber;
+	protected final KafkaSubscriber subscriber;
 	// Users can specify the starting / stopping offset initializer.
-	private final OffsetsInitializer startingOffsetsInitializer;
-	private final OffsetsInitializer stoppingOffsetsInitializer;
+	protected final OffsetsInitializer startingOffsetsInitializer;
+	protected final OffsetsInitializer stoppingOffsetsInitializer;
 	// Boundedness
-	private final Boundedness boundedness;
-	private final KafkaDeserializer<OUT> deserializationSchema;
+	protected final Boundedness boundedness;
+	protected final KafkaDeserializer<OUT> deserializationSchema;
 	// The configurations.
-	private final Properties props;
+	protected final Properties props;
 
 	KafkaSource(
 		KafkaSubscriber subscriber,
