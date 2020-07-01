@@ -24,6 +24,12 @@ import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
+import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
+import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
+import org.apache.flink.connector.base.source.reader.synchronization.FutureNotifier;
 import org.apache.flink.connector.file.src.assigners.FileSplitAssigner;
 import org.apache.flink.connector.file.src.enumerate.FileEnumerator;
 import org.apache.flink.core.fs.Path;
@@ -32,6 +38,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -51,6 +58,9 @@ public class FileSource<T> implements Source<T, FileSourceSplit, PendingSplitsCh
 
 	protected final FileSplitAssigner.Provider assignerFactory;
 
+	private Configuration config = new Configuration();
+
+	private FormatSplitReader.Factory<T> factory;
 
 	// ------------------------------------------------------------------------
 	//  (Convenience) Constructors
@@ -89,15 +99,40 @@ public class FileSource<T> implements Source<T, FileSourceSplit, PendingSplitsCh
 	//  Source API Methods
 	// ------------------------------------------------------------------------
 
+	public void setFormatSplitReader(FormatSplitReader.Factory<T> factory) {
+		this.factory = factory;
+	}
+
+	public void setConfig(Configuration config) {
+		this.config = config;
+	}
+
 	@Override
 	public Boundedness getBoundedness() {
 		// the first version is bounded only
 		return Boundedness.BOUNDED;
 	}
 
+	public Path[] getInputPaths() {
+		return inputPaths;
+	}
+
 	@Override
 	public SourceReader<T, FileSourceSplit> createReader(SourceReaderContext readerContext) {
-		throw new UnsupportedOperationException("not yet implemented");
+		FutureNotifier futureNotifier = new FutureNotifier();
+		FutureCompletingBlockingQueue<RecordsWithSplitIds<Tuple2<T, Long>>> elementsQueue =
+				new FutureCompletingBlockingQueue<>(futureNotifier);
+		Supplier<SplitReader<Tuple2<T, Long>, FileSourceSplit>> splitReaderSupplier =
+				() -> new FileSourceSplitReader<>(config, factory);
+		FileSourceRecordEmitter<T> recordEmitter = new FileSourceRecordEmitter<>();
+
+		return new FileSourceReader<>(
+				futureNotifier,
+				elementsQueue,
+				splitReaderSupplier,
+				recordEmitter,
+				config,
+				readerContext);
 	}
 
 	@Override

@@ -21,17 +21,17 @@ package org.apache.flink.table.planner.plan.nodes.common
 import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.connector.source.{InputFormatProvider, ScanTableSource, SourceFunctionProvider}
+import org.apache.flink.table.connector.source.{InputFormatProvider, ScanTableSource, SourceFunctionProvider, SourceProvider}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext
 import org.apache.flink.table.runtime.typeutils.RowDataTypeInfo
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelWriter
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
+import org.apache.flink.api.common.eventtime.WatermarkStrategy
 
 import scala.collection.JavaConverters._
 
@@ -79,6 +79,11 @@ abstract class CommonPhysicalTableSourceScan(
       case provider: InputFormatProvider =>
         val inputFormat = provider.createInputFormat()
         createInputFormatTransformation(env, inputFormat, name, outTypeInfo)
+      case provider: SourceProvider =>
+        val source = provider.createSource();
+        env
+          .fromSource(source, WatermarkStrategy.noWatermarks[RowData](), name, outTypeInfo)
+          .getTransformation
     }
   }
 

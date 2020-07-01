@@ -19,24 +19,66 @@ package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumerBase;
+import org.apache.flink.connectors.kafka.source.KafkaSource;
+import org.apache.flink.connectors.kafka.source.enumerator.initializer.OffsetsInitializer;
+import org.apache.flink.connectors.kafka.source.reader.deserializer.DeserializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.ScanTableSource;
+import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.util.Preconditions;
 
+import org.apache.kafka.common.TopicPartition;
+
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
+import java.util.UUID;
 
 /**
  * Kafka {@link org.apache.flink.table.connector.source.DynamicTableSource}.
  */
 @Internal
-public class KafkaDynamicSource extends KafkaDynamicSourceBase {
+public class KafkaDynamicSource implements ScanTableSource {
+
+	// --------------------------------------------------------------------------------------------
+	// Common attributes
+	// --------------------------------------------------------------------------------------------
+	protected final DataType outputDataType;
+
+	// --------------------------------------------------------------------------------------------
+	// Scan format attributes
+	// --------------------------------------------------------------------------------------------
+
+	/** Scan format for decoding records from Kafka. */
+	protected final DecodingFormat<DeserializationSchema<RowData>> decodingFormat;
+
+	// --------------------------------------------------------------------------------------------
+	// Kafka-specific attributes
+	// --------------------------------------------------------------------------------------------
+
+	/** The Kafka topic to consume. */
+	protected final String topic;
+
+	/** Properties for the Kafka consumer. */
+	protected final Properties properties;
+
+	/** The startup mode for the contained consumer (default is {@link StartupMode#GROUP_OFFSETS}). */
+	protected final StartupMode startupMode;
+
+	/** Specific startup offsets; only relevant when startup mode is {@link StartupMode#SPECIFIC_OFFSETS}. */
+	protected final Map<KafkaTopicPartition, Long> specificStartupOffsets;
+
+	/** The start timestamp to locate partition offsets; only relevant when startup mode is {@link StartupMode#TIMESTAMP}.*/
+	protected final long startupTimestampMillis;
 
 	/**
 	 * Creates a generic Kafka {@link StreamTableSource}.
@@ -58,7 +100,79 @@ public class KafkaDynamicSource extends KafkaDynamicSourceBase {
 			Map<KafkaTopicPartition, Long> specificStartupOffsets,
 			long startupTimestampMillis) {
 
-		super(
+		this.outputDataType = Preconditions.checkNotNull(
+			outputDataType, "Produced data type must not be null.");
+		this.topic = Preconditions.checkNotNull(topic, "Topic must not be null.");
+		this.properties = Preconditions.checkNotNull(properties, "Properties must not be null.");
+		this.decodingFormat = Preconditions.checkNotNull(
+			decodingFormat, "Decoding format must not be null.");
+		this.startupMode = Preconditions.checkNotNull(startupMode, "Startup mode must not be null.");
+		this.specificStartupOffsets = Preconditions.checkNotNull(
+			specificStartupOffsets, "Specific offsets must not be null.");
+		this.startupTimestampMillis = startupTimestampMillis;
+	}
+
+	@Override
+	public ChangelogMode getChangelogMode() {
+		return this.decodingFormat.getChangelogMode();
+	}
+
+	@Override
+	public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
+		DeserializationSchema<RowData> deserializationSchema =
+			this.decodingFormat.createRuntimeDecoder(runtimeProviderContext, this.outputDataType);
+		KafkaSource<RowData> kafkaSource = KafkaSource.<RowData>builder()
+			.setTopics(Collections.singletonList(topic))
+			.setDeserializer(new DeserializationSchemaWrapper<>(deserializationSchema))
+			.setClientIdPrefix(UUID.randomUUID().toString())
+			.setProperties(properties)
+			.setStartingOffsetInitializer(getOffsetInitializer())
+			.build();
+		return SourceProvider.of(kafkaSource);
+	}
+
+	private OffsetsInitializer getOffsetInitializer() {
+		switch (startupMode) {
+			case EARLIEST:
+				return OffsetsInitializer.earliest();
+			case LATEST:
+				return OffsetsInitializer.latest();
+			case GROUP_OFFSETS:
+				return OffsetsInitializer.committedOffsets();
+			case SPECIFIC_OFFSETS:
+				Map<TopicPartition, Long> offsets = new HashMap<>();
+				specificStartupOffsets.forEach((p, offset) -> {
+					offsets.put(new TopicPartition(p.getTopic(), p.getPartition()), offset);
+				});
+				return OffsetsInitializer.offsets(offsets);
+			case TIMESTAMP:
+				return OffsetsInitializer.timestamps(startupTimestampMillis);
+			default:
+				throw new UnsupportedOperationException("Unsupported startup mode: " + startupMode);
+		}
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		final KafkaDynamicSource that = (KafkaDynamicSource) o;
+		return Objects.equals(outputDataType, that.outputDataType) &&
+			Objects.equals(topic, that.topic) &&
+			Objects.equals(properties, that.properties) &&
+			Objects.equals(decodingFormat, that.decodingFormat) &&
+			startupMode == that.startupMode &&
+			Objects.equals(specificStartupOffsets, that.specificStartupOffsets) &&
+			startupTimestampMillis == that.startupTimestampMillis;
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(
 			outputDataType,
 			topic,
 			properties,
@@ -66,14 +180,6 @@ public class KafkaDynamicSource extends KafkaDynamicSourceBase {
 			startupMode,
 			specificStartupOffsets,
 			startupTimestampMillis);
-	}
-
-	@Override
-	protected FlinkKafkaConsumerBase<RowData> createKafkaConsumer(
-			String topic,
-			Properties properties,
-			DeserializationSchema<RowData> deserializationSchema) {
-		return new FlinkKafkaConsumer<>(topic, deserializationSchema, properties);
 	}
 
 	@Override

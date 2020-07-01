@@ -43,7 +43,7 @@ public class KafkaPartitionSplitSerializer implements SimpleVersionedSerializer<
 	@Override
 	public byte[] serialize(KafkaPartitionSplit split) throws IOException {
 		try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			 DataOutputStream out = new DataOutputStream(baos)) {
+				DataOutputStream out = new DataOutputStream(baos)) {
 			out.writeUTF(split.getTopic());
 			out.writeInt(split.getPartition());
 			out.writeLong(split.getStartingOffset());
@@ -56,7 +56,7 @@ public class KafkaPartitionSplitSerializer implements SimpleVersionedSerializer<
 	@Override
 	public KafkaPartitionSplit deserialize(int version, byte[] serialized) throws IOException {
 		try (ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
-			 DataInputStream in = new DataInputStream(bais)) {
+				DataInputStream in = new DataInputStream(bais)) {
 			String topic = in.readUTF();
 			int partition = in.readInt();
 			long offset = in.readLong();
