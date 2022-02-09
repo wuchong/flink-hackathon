@@ -955,7 +955,7 @@ under the License.
 			<id>hive-1.0.1</id>
 			<properties>
 				<hive.version>1.0.1</hive.version>
-				<hivemetastore.hadoop.version>2.6.5</hivemetastore.hadoop.version>
+				<hivemetastore.hadoop.version>2.10.1</hivemetastore.hadoop.version>
 				<hiverunner.version>3.1.1</hiverunner.version>
 				<derby.version>10.10.1.1</derby.version>
 			</properties>

@@ -34,7 +34,7 @@ under the License.
 
 	<properties>
 		<!-- Do not change this without updating the copied Configuration class! -->
-		<openstackhadoop.hadoop.version>2.8.1</openstackhadoop.hadoop.version>
+		<openstackhadoop.hadoop.version>2.10.1</openstackhadoop.hadoop.version>
 	</properties>
 
 	<!-- Overwrite hadoop dependency versions inherited from the parent pom dependencyManagement -->
